@@ -1,9 +1,6 @@
 [submodule "scripts/r0capture"]
 	path = scripts/r0capture
 	url = https://gitee.com/forgo7ten-mirrors/r0capture
-[submodule "scripts/jnitrace"]
-	path = scripts/jnitrace
-	url = https://gitee.com/forgo7ten-mirrors/jnitrace
 [submodule "scripts/OkHttpLogger-Frida"]
 	path = scripts/OkHttpLogger-Frida
 	url = https://gitee.com/forgo7ten-mirrors/OkHttpLogger-Frida
