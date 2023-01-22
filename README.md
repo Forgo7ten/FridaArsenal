@@ -10,3 +10,6 @@ Frida武器库，集成常用hook脚本与代码模板
 git clone --recurse-submodules https://github.com/Forgo7ten/FridaArsenal
 ```
 
+使用模板文件 template.js
+
+cp ./FridaArsenal/template.js tmp.js
