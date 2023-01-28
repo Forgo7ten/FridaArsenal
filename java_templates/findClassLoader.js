@@ -1,7 +1,7 @@
 /**
  * 通过hook的方式来获取classloader，并设置
  */
-function getClassLoaderByHook() {
+function findClassLoaderByHook() {
     let ActivityThread_clazz = Java.use("android.app.ActivityThread");
     ActivityThread_clazz["performLaunchActivity"].implementation = function () {
         let ret = this["performLaunchActivity"].apply(this, arguments);
