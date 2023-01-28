@@ -343,10 +343,11 @@ let futil = {
      * 对toast进行hook
      */
     hook_toast: function hook_toast() {
+        let thiz = this;
         Java.perform(function () {
             var Toast = Java.use("android.widget.Toast");
             Toast.show.implementation = function () {
-                printStack("SHOW Toast");
+                thiz.printStack("SHOW Toast");
                 return this.show();
             };
         });
