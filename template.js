@@ -344,19 +344,18 @@ let futil = {
         });
     },
 
-    __inner_gson_init_flag: false,
+    __inner_gson_obj: null,
     /**
      * 将对象转成json
      * @param {object} obj 要转成json的对象
      * @returns json字符串
      */
     toGson: function toGson(obj) {
-        if (!this.__inner_gson_init_flag) {
+        if (this.__inner_gson_obj == null) {
             Java.openClassFile("/data/local/tmp/r0gson.dex").load();
-            this.__inner_gson_init_flag = true;
+            this.__inner_gson_obj = Java.use('com.r0ysue.gson.Gson');
         }
-        const gson = Java.use('com.r0ysue.gson.Gson');
-        return gson.$new().toJson(obj);
+        return this.__inner_gson_obj.$new().toJson(obj);
     },
 
     __inner_jclazz: null,
