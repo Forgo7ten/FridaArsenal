@@ -278,6 +278,26 @@ let futil = {
     },
 
     /**
+     * 对某个特定的类的所有方法进行hook（拒绝搜索）
+     * @param {*} clsName 特定的类名
+     */
+    hookSpecificClass: function hookSpecificClass(clsName) {
+        let thiz = this;
+        Java.perform(function () {
+            console.log("Hook class:", clsName);
+            // 利用反射 获取类中的所有方法
+            var TargetClass = Java.use(clsName);
+            // return Method Object List
+            var methodsList = TargetClass.class.getDeclaredMethods();
+            for (var i = 0; i < methodsList.length; i++) {
+                // console.log(methodsList[i].getName()); // 打印其中方法的名字
+                // 可以hook该类中的所有方法
+                thiz.hookMethodAllOverloads(clsName, methodsList[i].getName());
+            }
+        })
+    },
+
+    /**
      * hook方法的每一个重载
      * @param {String} className 要hook的类名
      * @param {String} methodName 要hook的方法名
