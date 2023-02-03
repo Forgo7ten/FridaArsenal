@@ -344,19 +344,36 @@ let futil = {
         });
     },
 
-    gson_init_flag: false,
+    __inner_gson_init_flag: false,
     /**
      * 将对象转成json
      * @param {object} obj 要转成json的对象
      * @returns json字符串
      */
     toGson: function toGson(obj) {
-        if (!this.gson_init_flag) {
+        if (!this.__inner_gson_init_flag) {
             Java.openClassFile("/data/local/tmp/r0gson.dex").load();
-            this.gson_init_flag = true;
+            this.__inner_gson_init_flag = true;
         }
         const gson = Java.use('com.r0ysue.gson.Gson');
         return gson.$new().toJson(obj);
+    },
+
+    __inner_jclazz: null,
+    __inner_jobj: null,
+    /**
+     * 通过对象，拿到对象的全类名
+     * @param {*} obj 未知对象
+     * @returns 对象的全类名
+     */
+    getObjClassName: function getObjClassName(obj) {
+        if (!__inner_jclazz) {
+            var __inner_jclazz = Java.use("java.lang.Class");
+        }
+        if (!__inner_jobj) {
+            var __inner_jobj = Java.use("java.lang.Object");
+        }
+        return __inner_jclazz.getName.call(__inner_jobj.getClass.call(obj));
     },
 
     /**
