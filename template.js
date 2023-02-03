@@ -91,11 +91,12 @@ let futil = {
 
     /**
      * 通过提供的父类名称，在限定范围内查找子类
-     * @param {String} whiteClsName 白名单筛选
      * @param {String} superClassName 要寻找子类的父类名称
+     * @param {String} whiteClsName 白名单筛选
      * @param {String} blackClsName 黑名单
      */
-    findChildBySuper: function findChildBySuper(whiteClsName, superClassName, blackClsName = "") {
+    findChildBySuper: function findChildBySuper(superClassName, whiteClsName = "", blackClsName = "") {
+        let thiz = this;
         Java.perform(function () {
             Java.enumerateLoadedClasses({
                 onMatch: function (class_name) {
@@ -103,15 +104,21 @@ let futil = {
                     if (blackClsName.length != 0 && class_name.indexOf(blackClsName) >= 0) {
                         return;
                     }
+                    // 如果白名单为空（搜索全局），过滤一些系统类
+                    if (whiteClsName.length == 0 && !thiz.__inner_checkClass(class_name)) {
+                        return;
+                    }
                     if (class_name.indexOf(whiteClsName) >= 0) {
-                        var hook_cls = Java.use(class_name);
-                        var superClass = hook_cls.class.getSuperclass();
-                        while (superClass != null) {
-                            if (superClass.toString().indexOf(superClassName) >= 0) {
-                                console.log("Found:", class_name, superClass);
+                        try {
+                            var hook_cls = Java.use(class_name);
+                            var superClass = hook_cls.class.getSuperclass();
+                            while (superClass != null) {
+                                if (superClass.toString().indexOf(superClassName) >= 0) {
+                                    console.log("Found:", class_name, superClass);
+                                }
+                                superClass = superClass.getSuperclass();
                             }
-                            superClass = superClass.getSuperclass();
-                        }
+                        } catch (error) { }
                     }
                 },
                 onComplete: function () {
@@ -124,11 +131,12 @@ let futil = {
 
     /**
      * 通过提供的接口名称，在限定范围内查找实现类
-     * @param {String} whiteClsName 白名单筛选
      * @param {String} interfaceName 要寻找实现类的接口名称
+     * @param {String} whiteClsName 白名单筛选
      * @param {String} blackClsName 黑名单
      */
-    findImpByInterface: function findImpByInterface(whiteClsName, interfaceName, blackClsName = "") {
+    findImpByInterface: function findImpByInterface(interfaceName, whiteClsName = "", blackClsName = "") {
+        let thiz = this;
         Java.perform(function () {
             Java.enumerateLoadedClasses({
                 onMatch: function (class_name) {
@@ -136,16 +144,22 @@ let futil = {
                     if (blackClsName.length != 0 && class_name.indexOf(blackClsName) >= 0) {
                         return;
                     }
+                    // 如果白名单为空（搜索全局），过滤一些系统类
+                    if (whiteClsName.length == 0 && !thiz.__inner_checkClass(class_name)) {
+                        return;
+                    }
                     if (class_name.indexOf(whiteClsName) >= 0) {
-                        var clazz = Java.use(class_name);
-                        var interfaces = clazz.class.getInterfaces();
-                        if (interfaces.length > 0) {
-                            for (var i in interfaces) {
-                                if (interfaces[i].toString().indexOf(interfaceName) >= 0) {
-                                    console.log(class_name, ":", interfaces[i].toString());
+                        try {
+                            var clazz = Java.use(class_name);
+                            var interfaces = clazz.class.getInterfaces();
+                            if (interfaces.length > 0) {
+                                for (var i in interfaces) {
+                                    if (interfaces[i].toString().indexOf(interfaceName) >= 0) {
+                                        console.log(class_name, ":", interfaces[i].toString());
+                                    }
                                 }
                             }
-                        }
+                        } catch (error) { }
                     }
                 },
                 onComplete: function () {
@@ -153,6 +167,31 @@ let futil = {
                 }
             })
         })
+    },
+
+    /**
+     * 检查类名，过滤系统类和基本类型。返回false表示命中，需要过滤掉
+     * @param {String} name 类名
+     * @returns boolean
+     */
+    __inner_checkClass: function checkClass(name) {
+        if (name.startsWith("com.")
+            || name.startsWith("cn.")
+            || name.startsWith("io.")
+            || name.startsWith("org.")
+            || name.startsWith("android")
+            || name.startsWith("kotlin")
+            || name.startsWith("[")
+            || name.startsWith("java")
+            || name.startsWith("sun.")
+            || name.startsWith("net.")
+            || name.indexOf(".") < 0
+            || name.startsWith("dalvik")
+
+        ) {
+            return false;
+        }
+        return true;
     },
 
     /**
