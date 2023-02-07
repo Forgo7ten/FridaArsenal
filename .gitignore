@@ -1,3 +1,4 @@
 scripts/OkHttpLogger-Frida
 scripts/r0capture
 scripts/frida_hook_libart
+scripts/frida_dump

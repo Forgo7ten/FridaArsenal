@@ -7,3 +7,6 @@
 [submodule "scripts/frida_hook_libart"]
 	path = scripts/frida_hook_libart
 	url = https://gitee.com/forgo7ten-mirrors/frida_hook_libart
+[submodule "scripts/frida_dump"]
+	path = scripts/frida_dump
+	url = https://gitee.com/forgo7ten-mirrors/frida_dump
