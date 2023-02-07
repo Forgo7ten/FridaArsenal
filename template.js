@@ -415,6 +415,33 @@ let futil = {
     },
 
     /**
+     * Java.cast java对象
+     * @param {*} jobj java对象
+     * @returns 强转之后的
+     */
+    getWrapper: function getWrapper(jobj) {
+        return Java.cast(jobj, Java.use(javaobject.$className))
+    },
+
+    /**
+     * 通过反射来获取java对象 成员的值
+     * @param {*} object java对象
+     * @param {string} fieldName 字段名
+     * @returns 对象成员的值
+     */
+    getFieldValue: function getFieldValue(object, fieldName) {
+        var field = object.class.getDeclaredField(fieldName);
+        field.setAccessible(true)
+        var fieldValue = field.get(object)
+        if (null == fieldValue) {
+            return null;
+        }
+        var FieldClazz = Java.use(fieldValue.$className)
+        var fieldValueWapper = Java.cast(fieldValue, FieldClazz)
+        return fieldValueWapper
+    },
+
+    /**
      * [未测试] dump客户端证书，并保存为p12的格式，证书密码为Forgo7ten
      */
     hook_keystore: function hook_keystore() {
