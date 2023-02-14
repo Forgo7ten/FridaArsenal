@@ -502,6 +502,63 @@ let futil = {
     },
 
     /**
+     * 对栈进行hook，并过滤栈信息
+     */
+    filter_stack: function filter_stack() {
+        // TODO: Xposed用户模块的函数调用栈，未能成功过滤
+        /**
+         * 过滤栈的判断，当不含有关键字时，返回true
+         * @param {StackTraceElement} stack java栈元素
+         * @returns true则通过过滤
+         */
+        function filter_key(stack) {
+            let filter_arr = ["lsp", "xposed", "java.lang.reflect.Method.invoke(Native Method)"];
+            for (var filter_str of filter_arr) {
+                if (stack.toString().toLowerCase().indexOf(filter_str.toLowerCase()) >= 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        Java.perform(function () {
+            let Throwable = Java.use("java.lang.Throwable");
+            let Thread = Java.use("java.lang.Thread");
+            let StackTraceElement = Java.use("java.lang.StackTraceElement");
+
+            Throwable["getOurStackTrace"].implementation = function () {
+                console.log("Throwable.getOurStackTrace()")
+                let stacks = this.getOurStackTrace();
+                let newStacks = []
+                for (var i = 0; i < stacks.length; i++) {
+                    var stack = stacks[i];
+                    var stack_str = stack.toString();
+                    // 过滤栈中的一些字眼
+                    if (!filter_key(stack)) continue;
+                    // 过滤Frida的情况
+                    if (newStacks.length > 0 && stack_str.indexOf(newStacks[newStacks.length - 1].toString().split('(')[0] + "(Native Method)") >= 0) continue;
+                    newStacks.push(stack);
+                }
+                return newStacks;
+            };
+            Thread["getStackTrace"].implementation = function () {
+                console.log("Thread.getStackTrace()")
+                let stacks = this.getStackTrace();
+                let newStacks = []
+                for (var i = 0; i < stacks.length; i++) {
+                    var stack = stacks[i];
+                    var stack_str = stack.toString();
+                    // 过滤栈中的一些字眼
+                    if (!filter_key(stack)) continue;
+                    // 过滤Frida的情况
+                    if (newStacks.length > 0 && stack_str.indexOf(newStacks[newStacks.length - 1].toString().split('(')[0] + "(Native Method)") >= 0) continue;
+                    newStacks.push(stack);
+                }
+                return newStacks;
+            };
+        })
+    },
+
+    /**
      * 对toast进行hook
      */
     hook_toast: function hook_toast() {
