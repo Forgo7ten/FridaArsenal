@@ -520,42 +520,45 @@ let futil = {
             }
             return true;
         }
+        function faked_stack(stacks) {
+            let newStacks = []
+            for (var i = 0; i < stacks.length; i++) {
+                var stack = stacks[i];
+                var stack_str = stack.toString();
+                // 过滤栈中的一些字眼
+                if (!filter_key(stack)) continue;
+                // 过滤Frida的情况
+                if (newStacks.length > 0 && stack_str.indexOf(newStacks[newStacks.length - 1].toString().split('(')[0] + "(Native Method)") >= 0) continue;
+                newStacks.push(stack);
+            }
+            return newStacks;
+        }
         Java.perform(function () {
             let Throwable = Java.use("java.lang.Throwable");
             let Thread = Java.use("java.lang.Thread");
+            let VMStack = Java.use("dalvik.system.VMStack")
             let StackTraceElement = Java.use("java.lang.StackTraceElement");
-
+    
             Throwable["getOurStackTrace"].implementation = function () {
                 console.log("Throwable.getOurStackTrace()")
                 let stacks = this.getOurStackTrace();
-                let newStacks = []
-                for (var i = 0; i < stacks.length; i++) {
-                    var stack = stacks[i];
-                    var stack_str = stack.toString();
-                    // 过滤栈中的一些字眼
-                    if (!filter_key(stack)) continue;
-                    // 过滤Frida的情况
-                    if (newStacks.length > 0 && stack_str.indexOf(newStacks[newStacks.length - 1].toString().split('(')[0] + "(Native Method)") >= 0) continue;
-                    newStacks.push(stack);
-                }
+                let newStacks = faked_stack(stacks);
                 return newStacks;
             };
             Thread["getStackTrace"].implementation = function () {
                 console.log("Thread.getStackTrace()")
                 let stacks = this.getStackTrace();
-                let newStacks = []
-                for (var i = 0; i < stacks.length; i++) {
-                    var stack = stacks[i];
-                    var stack_str = stack.toString();
-                    // 过滤栈中的一些字眼
-                    if (!filter_key(stack)) continue;
-                    // 过滤Frida的情况
-                    if (newStacks.length > 0 && stack_str.indexOf(newStacks[newStacks.length - 1].toString().split('(')[0] + "(Native Method)") >= 0) continue;
-                    newStacks.push(stack);
-                }
+                let newStacks = faked_stack(stacks);
+                return newStacks;
+            };
+            VMStack["getThreadStackTrace"].implementation = function (thread) {
+                console.log("VMStack.getThreadStackTrace(" + thread + ")")
+                let stacks = this.getThreadStackTrace(thread);
+                let newStacks = faked_stack(stacks);
                 return newStacks;
             };
         })
+        console.log("Filter stack")
     },
 
     /**
