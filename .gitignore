@@ -1,3 +1,7 @@
+node_modules/
+*.log
+/_agent.js
+/package-lock.json
 scripts/OkHttpLogger-Frida
 scripts/r0capture
 scripts/frida_hook_libart

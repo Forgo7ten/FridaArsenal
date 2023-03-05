@@ -1,0 +1,44 @@
+{
+  "name": "@forgo7ten/frida_arsenal",
+  "version": "1.0.0",
+  "description": "FridaArsenal",
+  "private": false,
+  "main": "index.ts",
+  "scripts": {
+    "prepare": "npm run build",
+    "build": "frida-compile index.ts -o _agent.js",
+    "watch": "frida-compile index.ts -o _agent.js -w"
+  },
+  "devDependencies": {
+    "@types/frida-gum": "^18.3.1",
+    "@types/node": "^14.18.37",
+    "frida-compile": "^10.2.5",
+    "typecript": "^0.0.1-security"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "@types/frida-gum": "^18.3.1",
+    "@types/node": "^14.18.37",
+    "frida-compile": "^10.2.5",
+    "typecript": "^0.0.1-security"
+  },
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Forgo7ten/FridaArsenal.git"
+  },
+  "keywords": [
+    "Frida",
+    "AndroidReverse"
+  ],
+  "author": "Forgo7ten",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/Forgo7ten/FridaArsenal/issues"
+  },
+  "homepage": "https://github.com/Forgo7ten/FridaArsenal#readme"
+}
