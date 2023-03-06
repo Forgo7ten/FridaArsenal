@@ -4,6 +4,17 @@ export class _Flog {
     static debugFlag: boolean = true;
     static readonly TAG: string = "FridaLog"
 
+    static line(msg: string): void;
+    static line(tag: string, msg: string): void;
+
+    static line(tag_or_msg: any, msg?: string): void {
+        if (msg) {
+            this.i(tag_or_msg, `========================================  ${msg}  ========================================`)
+        } else {
+            this.i(`========================================  ${tag_or_msg}  ========================================`)
+        }
+    }
+
     static d(msg: string): void;
 
     static d(tag: string, msg: string): void;
