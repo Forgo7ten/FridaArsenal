@@ -1,5 +1,5 @@
-import Wrapper = Java.Wrapper;
 import {common} from "../common";
+import Wrapper = Java.Wrapper;
 import Flog = common.Flog;
 
 export class _Helper {
@@ -42,10 +42,24 @@ export class _Helper {
     /**
      * Java.cast java对象
      * @param jobj java对象
+     * @param cls 认为的该对象可能的类名或类，可省略
      * @returns 强转之后的
      */
-    static getWrapper(jobj: Wrapper): Wrapper {
-        return Java.cast(jobj, Java.use(jobj.$className))
+    static getWrapper(jobj: Wrapper, cls: Wrapper | string | null = null): Wrapper | null {
+        if (jobj == null) {
+            return null;
+        }
+        try {
+            cls = cls || jobj.$className;
+            if (typeof cls === "string") {
+                return Java.cast(jobj, Java.use(cls));
+            } else {
+                return Java.cast(jobj, cls);
+            }
+        } catch (error) {
+            Flog.e(`ERROR:${error}`)
+        }
+        return null;
     }
 
 
@@ -177,9 +191,9 @@ export class _Helper {
      * @param TAG TAG，可选
      */
     static printStack(TAG: string = ""): void {
-        Flog.i("=============================" + TAG + " Stack strat=======================");
+        console.log("========================================  " + TAG + " Stack strat  ========================================");
         console.log(this.getStack());
-        Flog.i("=============================" + TAG + " Stack end=======================\r\n");
+        console.log("========================================  " + TAG + " Stack end  ========================================\r\n");
     }
 
     private static __gson_obj: Wrapper | null = null;
