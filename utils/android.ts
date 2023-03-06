@@ -4,6 +4,8 @@ import {_Helper} from "./android/helper";
 import {_HookClazz} from "./android/hook_clazz";
 import {_Anti} from "./android/anti";
 import {_WatchViews} from "./android/watch_views";
+import {_WatchCrypto} from "./android/watch_crypto";
+import {_CastHelper} from "./android/cast_helper";
 
 export namespace android {
     export class Helper extends _Helper {
@@ -16,7 +18,6 @@ export namespace android {
     }
 
     export class HookClazz extends _HookClazz {
-
     }
 
     export class Anit extends _Anti {
@@ -24,6 +25,9 @@ export namespace android {
     }
 
     export class WatchViews extends _WatchViews {
+    }
+
+    export class CastHelper extends _CastHelper{
     }
 }
 
