@@ -1,6 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="attach" type="ChromiumRemoteDebugType" factoryName="Chromium Remote" port="9229" isV8Legacy="true" restartOnDisconnect="true">
     <option name="v8Legacy" value="true" />
+    <mapping local-file="$PROJECT_DIR$/utils" />
     <method v="2" />
   </configuration>
 </component>

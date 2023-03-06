@@ -27,7 +27,10 @@ export namespace android {
     export class WatchViews extends _WatchViews {
     }
 
-    export class CastHelper extends _CastHelper{
+    export class CastHelper extends _CastHelper {
+    }
+
+    export class WatchCrypto extends _WatchCrypto {
     }
 }
 
