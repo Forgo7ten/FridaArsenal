@@ -1,4 +1,6 @@
+import {common} from "../common";
 import Wrapper = Java.Wrapper;
+import Flog = common.Flog;
 
 export class _CastHelper {
     static readonly TAG = "CastHelper"
@@ -12,11 +14,17 @@ export class _CastHelper {
      * @return string 字节数组变为的字符串
      */
     static b2str(bytes: Wrapper): string {
-        if (bytes.$className == '[B') {
+        try {
+            if (bytes.$className == '[B') {
+                // @ts-ignore
+                bytes = Java.array("byte", bytes)
+            }
+            return this.String_clazz.$new(bytes)
+        } catch (error) {
+            Flog.d(this.TAG, `b2str argument type error.`)
             // @ts-ignore
-            bytes = Java.array("byte", bytes)
+            return bytes;
         }
-        return this.String_clazz.$new(bytes)
     }
 
     /**
@@ -25,11 +33,17 @@ export class _CastHelper {
      * @return string base64字符串
      */
     static b2b64str(bytes: Wrapper): string {
-        if (bytes.$className == '[B') {
+        try {
+            if (bytes.$className == '[B') {
+                // @ts-ignore
+                bytes = Java.array("byte", bytes)
+            }
+            return this.Base64_clazz["encodeToString"](bytes, 0);
+        } catch (error) {
+            Flog.d(this.TAG, `b2b64str argument type error.`)
             // @ts-ignore
-            bytes = Java.array("byte", bytes)
+            return bytes;
         }
-        return this.Base64_clazz["encodeToString"](bytes, 0);
     }
 
     /**
@@ -38,10 +52,16 @@ export class _CastHelper {
      * @return string hex字符串
      */
     static b2hex(bytes: Wrapper): string {
-        if (bytes.$className == '[B') {
+        try {
+            if (bytes.$className == '[B') {
+                // @ts-ignore
+                bytes = Java.array("byte", bytes)
+            }
+            return this.ByteString_clazz.of(bytes).hex()
+        } catch (error) {
+            Flog.d(this.TAG, `b2hex argument type error.`)
             // @ts-ignore
-            bytes = Java.array("byte", bytes)
+            return bytes;
         }
-        return this.ByteString_clazz.of(bytes).hex()
     }
 }
