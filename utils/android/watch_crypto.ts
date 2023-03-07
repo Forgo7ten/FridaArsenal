@@ -17,7 +17,19 @@ export class _WatchCrypto {
     protected static MessageDigest_clazz: Wrapper;
     protected static Mac_clazz: Wrapper;
 
-    static watch_crypto(): void {
+    /**
+     * 控制调用栈的打印
+     * @private
+     */
+    protected static _stack_controller: boolean;
+
+    /**
+     * 监控密码加解密相关方法
+     * @param stack 控制调用栈的打印，默认为true，打印调用栈
+     */
+    static watch_crypto(stack: boolean = true): void {
+        _WatchCrypto._stack_controller = stack
+
         Java.perform(() => {
             this.watch_cipher();
             this.watch_digest();
@@ -60,7 +72,7 @@ export class _WatchCrypto {
                     Flog.i(_WatchCrypto.Cipher_TAG, `paramSpec=${paramSpec.toString()}`);
                 }
             }
-            _Helper.printStack("Mac_init")
+            if (_WatchCrypto._stack_controller) _Helper.printStack("Mac_init")
             return ret;
         }
         Mac_init.overload('java.security.Key').implementation = initImpl
@@ -86,7 +98,7 @@ export class _WatchCrypto {
                 input_str = _CastHelper.b2str(input)
             }
             if (input) Flog.i(_WatchCrypto.HMac_TAG, `input=${input}; input_str=${input_str}; input_b64=${_CastHelper.b2b64str(input)}`)
-            _Helper.printStack("Mac_update")
+            if (_WatchCrypto._stack_controller) _Helper.printStack("Mac_update")
             return ret;
         }
 
@@ -115,7 +127,7 @@ export class _WatchCrypto {
                     break;
             }
             if (output) Flog.i(_WatchCrypto.HMac_TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}`)
-            _Helper.printStack("Mac_doFinal")
+            if (_WatchCrypto._stack_controller) _Helper.printStack("Mac_doFinal")
             return ret;
         }
 
@@ -155,7 +167,7 @@ export class _WatchCrypto {
                 input_str = _CastHelper.b2str(input)
             }
             if (input) Flog.i(_WatchCrypto.MessageDigest_TAG, `input=${input}; input_str=${input_str}; input_b64=${_CastHelper.b2b64str(input)}`)
-            _Helper.printStack("MessageDigest_update")
+            if (_WatchCrypto._stack_controller) _Helper.printStack("MessageDigest_update")
             return ret;
         }
         MessageDigest_update.overload('byte').implementation = updateImpl
@@ -183,7 +195,7 @@ export class _WatchCrypto {
                     break;
             }
             if (output) Flog.i(_WatchCrypto.MessageDigest_TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}`)
-            _Helper.printStack("MessageDigest_digest")
+            if (_WatchCrypto._stack_controller) _Helper.printStack("MessageDigest_digest")
             return ret;
         }
 
@@ -233,7 +245,7 @@ export class _WatchCrypto {
             }
             let ret = this["chooseProvider"].apply(this, arguments)
             // console.warn(_WatchCipher.TAG, `${this} -> ${this.spi.value}`)
-            _Helper.printStack("Cipher_init")
+            if (_WatchCrypto._stack_controller) _Helper.printStack("Cipher_init")
             return ret;
         };
     }
@@ -263,7 +275,7 @@ export class _WatchCrypto {
             }
             if (input) Flog.i(_WatchCrypto.Cipher_TAG, `input=${input}; input_str=${_CastHelper.b2str(input)}; input_b64=${_CastHelper.b2b64str(input)}`)
             if (output) Flog.i(_WatchCrypto.Cipher_TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}; output_b64=${_CastHelper.b2b64str(output)}`)
-            _Helper.printStack("Cipher_update")
+            if (_WatchCrypto._stack_controller) _Helper.printStack("Cipher_update")
             return ret;
         }
 
@@ -309,7 +321,7 @@ export class _WatchCrypto {
             }
             if (input) Flog.i(_WatchCrypto.Cipher_TAG, `input=${input}; input_str=${_CastHelper.b2str(input)}; input_b64=${_CastHelper.b2b64str(input)}`)
             if (output) Flog.i(_WatchCrypto.Cipher_TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}; output_b64=${_CastHelper.b2b64str(output)}`)
-            _Helper.printStack("Cipher_doFinal")
+            if (_WatchCrypto._stack_controller) _Helper.printStack("Cipher_doFinal")
             return ret;
         }
 

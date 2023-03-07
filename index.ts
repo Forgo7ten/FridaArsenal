@@ -6,7 +6,7 @@ import WatchCipher = android.WatchCrypto;
 
 function main() {
     Java.perform(() => {
-        WatchCipher.watch_crypto();
+        WatchCipher.watch_crypto(false);
     })
 }
 
