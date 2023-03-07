@@ -9,6 +9,8 @@ import MethodImplementation = Java.MethodImplementation;
 
 export class _WatchCrypto {
     static readonly TAG: string = "WatchCrypto"
+    static readonly Cipher_TAG: string = "Cipher"
+    static readonly MessageDigest_TAG: string = "MessageDigest"
     static readonly HMac_TAG: string = "Hmac"
 
     protected static Cipher_clazz: Wrapper;
@@ -37,20 +39,27 @@ export class _WatchCrypto {
 
     protected static hook_Mac_init() {
         const Mac_init: MethodDispatcher = this.Mac_clazz["init"]
+        const IvParameterSpec_clazz = Java.use("javax.crypto.spec.IvParameterSpec")
         const initImpl: MethodImplementation = function () {
-            let params: Wrapper | null = null;
+            let paramSpec: Wrapper;
             let ret = this["init"].apply(this, arguments)
             Flog.line(_WatchCrypto.HMac_TAG, `${this}.init():${this.algorithm.value}`)
             let key: Wrapper = arguments[0];
             let key_algorithm = key["getAlgorithm"]();
             let key_format = key["getFormat"]();
             let key_encoded = key["getEncoded"]();
+            if (key) Flog.i(_WatchCrypto.HMac_TAG, `Key info: algorithm=${key_algorithm}; format=${key_format}; encoded=${key_encoded}; key_str=${_CastHelper.b2str(key_encoded)}; key_b64=${_CastHelper.b2b64str(key_encoded)}`)
             if (arguments.length == 2) {
                 // .overload('java.security.Key', 'java.security.spec.AlgorithmParameterSpec')
-                params = arguments[1]
+                paramSpec = arguments[1];
+                try {
+                    paramSpec = Java.cast(paramSpec, IvParameterSpec_clazz);
+                    let iv = paramSpec.getIV();
+                    Flog.i(_WatchCrypto.Cipher_TAG, `IV=${iv}; IV_str=${_CastHelper.b2str(iv)}`);
+                } catch (error) {
+                    Flog.i(_WatchCrypto.Cipher_TAG, `paramSpec=${paramSpec.toString()}`);
+                }
             }
-            if (key) Flog.i(_WatchCrypto.HMac_TAG, `key info: algorithm=${key_algorithm}; format=${key_format}; encoded=${key_encoded}; key_str=${_CastHelper.b2str(key_encoded)}; key_b64=${_CastHelper.b2b64str(key_encoded)}`)
-            if (params) Flog.i(_WatchCrypto.HMac_TAG, `params=${params.toString()}`)
             _Helper.printStack("Mac_init")
             return ret;
         }
@@ -117,6 +126,9 @@ export class _WatchCrypto {
 
     }
 
+    /**
+     * 监控MessageDigest类：md5,sha1,sha256...
+     */
     static watch_digest(): void {
         Java.perform(() => {
             this.MessageDigest_clazz = Java.use("java.security.MessageDigest");
@@ -127,10 +139,10 @@ export class _WatchCrypto {
 
     protected static hook_MessageDigest_update() {
         const MessageDigest_update: MethodDispatcher = this.MessageDigest_clazz["update"]
-        let updateImpl: MethodImplementation = function () {
+        const updateImpl: MethodImplementation = function () {
             let input: Wrapper;
             let ret = this["update"].apply(this, arguments)
-            Flog.line(_WatchCrypto.TAG, `${this}_${this.hashCode()}.update():${this.algorithm.value}`)
+            Flog.line(_WatchCrypto.MessageDigest_TAG, `${this}_${this.hashCode()}.update():${this.algorithm.value}`)
             if (arguments[0].$className != undefined) {
                 input = arguments[0].array();
             } else {
@@ -142,7 +154,7 @@ export class _WatchCrypto {
             } else {
                 input_str = _CastHelper.b2str(input)
             }
-            if (input) Flog.i(_WatchCrypto.TAG, `input=${input}; input_str=${input_str}`)
+            if (input) Flog.i(_WatchCrypto.MessageDigest_TAG, `input=${input}; input_str=${input_str}; input_b64=${_CastHelper.b2b64str(input)}`)
             _Helper.printStack("MessageDigest_update")
             return ret;
         }
@@ -155,10 +167,10 @@ export class _WatchCrypto {
 
     protected static hook_MessageDigest_digest() {
         const MessageDigest_digest: MethodDispatcher = this.MessageDigest_clazz["digest"]
-        let digestImpl: MethodImplementation = function () {
+        const digestImpl: MethodImplementation = function () {
             let output: Wrapper | null;
             let ret = this["digest"].apply(this, arguments)
-            Flog.line(_WatchCrypto.TAG, `${this}_${this.hashCode()}.digest():${this.algorithm.value}`)
+            Flog.line(_WatchCrypto.MessageDigest_TAG, `${this}_${this.hashCode()}.digest():${this.algorithm.value}`)
             switch (arguments.length) {
                 case 0:
                     output = ret;
@@ -170,7 +182,7 @@ export class _WatchCrypto {
                     output = null;
                     break;
             }
-            if (output) Flog.i(_WatchCrypto.TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}`)
+            if (output) Flog.i(_WatchCrypto.MessageDigest_TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}`)
             _Helper.printStack("MessageDigest_digest")
             return ret;
         }
@@ -182,6 +194,9 @@ export class _WatchCrypto {
 
     }
 
+    /**
+     * 监控Cipher类：AES,DES,RSA...
+     */
     static watch_cipher(): void {
         Java.perform(() => {
             this.Cipher_clazz = Java.use("javax.crypto.Cipher");
@@ -200,17 +215,21 @@ export class _WatchCrypto {
          */
         Cipher_chooseProvider.implementation = function (initType: Wrapper, opmode: number, key: Wrapper, paramSpec: Wrapper, params: Wrapper, random: Wrapper) {
             let opmode_str: string = this["getOpmodeString"](opmode);
-            Flog.line(_WatchCrypto.TAG, `${this}.init(): ${this.transformation.value} -> ${opmode_str}`)
+            Flog.line(_WatchCrypto.Cipher_TAG, `${this}.init(): ${this.transformation.value} -> ${opmode_str}`)
             if (null != key) {
                 let key_algorithm = key["getAlgorithm"]();
                 let key_format = key["getFormat"]();
                 let key_encoded = key["getEncoded"]();
-                Flog.i(_WatchCrypto.TAG, `key info: algorithm=${key_algorithm} format=${key_format} encoded=${key_encoded} key_str=${_CastHelper.b2str(key_encoded)}`)
+                Flog.i(_WatchCrypto.Cipher_TAG, `Key info: algorithm=${key_algorithm}; format=${key_format}; encoded=${key_encoded}; key_str=${_CastHelper.b2str(key_encoded)}; key_b64=${_CastHelper.b2b64str(key_encoded)}`)
             }
             if (paramSpec != null) {
-                paramSpec = Java.cast(paramSpec, IvParameterSpec_clazz)
-                let iv = paramSpec.getIV()
-                Flog.i(_WatchCrypto.TAG, `IV=${iv} IV_str=${_CastHelper.b2str(iv)}`)
+                try {
+                    paramSpec = Java.cast(paramSpec, IvParameterSpec_clazz)
+                    let iv = paramSpec.getIV()
+                    Flog.i(_WatchCrypto.Cipher_TAG, `IV=${iv}; IV_str=${_CastHelper.b2str(iv)}`)
+                } catch (error) {
+                    Flog.i(_WatchCrypto.Cipher_TAG, `paramSpec=${paramSpec.toString()}`)
+                }
             }
             let ret = this["chooseProvider"].apply(this, arguments)
             // console.warn(_WatchCipher.TAG, `${this} -> ${this.spi.value}`)
@@ -221,11 +240,11 @@ export class _WatchCrypto {
 
     protected static hook_Cipher_update() {
         const Cipher_update: MethodDispatcher = this.Cipher_clazz["update"]
-        let updateImpl: MethodImplementation = function () {
+        const updateImpl: MethodImplementation = function () {
             let input: Wrapper | null;
             let output: Wrapper | null;
             let ret = this["update"].apply(this, arguments)
-            Flog.line(_WatchCrypto.TAG, `${this}.update():${this.transformation.value}`)
+            Flog.line(_WatchCrypto.Cipher_TAG, `${this}.update():${this.transformation.value}`)
             if (arguments.length == 2) {
                 // .overload('java.nio.ByteBuffer', 'java.nio.ByteBuffer')
                 input = arguments[0].array();
@@ -242,8 +261,8 @@ export class _WatchCrypto {
                 input = arguments[0];
                 output = arguments[3];
             }
-            if (input) Flog.i(_WatchCrypto.TAG, `input=${input}; input_str=${_CastHelper.b2str(input)}`)
-            if (output) Flog.i(_WatchCrypto.TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}; output_b64=${_CastHelper.b2b64str(output)}`)
+            if (input) Flog.i(_WatchCrypto.Cipher_TAG, `input=${input}; input_str=${_CastHelper.b2str(input)}; input_b64=${_CastHelper.b2b64str(input)}`)
+            if (output) Flog.i(_WatchCrypto.Cipher_TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}; output_b64=${_CastHelper.b2b64str(output)}`)
             _Helper.printStack("Cipher_update")
             return ret;
         }
@@ -258,21 +277,14 @@ export class _WatchCrypto {
     protected static hook_Cipher_doFinal() {
         const Cipher_doFinal: MethodDispatcher = this.Cipher_clazz["doFinal"];
 
-        function print_Cipher_doFinal(cipherObj: Wrapper, input: Wrapper | null, output: Wrapper | null): void {
-            Flog.line(_WatchCrypto.TAG, `${cipherObj}.update():${cipherObj.transformation.value}`)
-            if (input) Flog.i(_WatchCrypto.TAG, `input=${input}; input_str=${_CastHelper.b2str(input)}`)
-            if (output) Flog.i(_WatchCrypto.TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}; output_b64=${_CastHelper.b2b64str(output)}`)
-            _Helper.printStack("Cipher_update")
-        }
-
         /**
          * FixMe: 没有经过详细的测试
          */
-        let doFinalImpl: MethodImplementation = function () {
+        const doFinalImpl: MethodImplementation = function () {
             let input: Wrapper | null;
             let output: Wrapper | null;
             let ret = this["doFinal"].apply(this, arguments)
-            Flog.line(_WatchCrypto.TAG, `${this}.doFinal():${this.transformation.value}`)
+            Flog.line(_WatchCrypto.Cipher_TAG, `${this}.doFinal():${this.transformation.value}`)
             if ([0, 1, 3].includes(arguments.length)) {
                 // .overload()
                 // .overload('[B')
@@ -295,8 +307,8 @@ export class _WatchCrypto {
                     output = arguments[1].array();
                 }
             }
-            if (input) Flog.i(_WatchCrypto.TAG, `input=${input}; input_str=${_CastHelper.b2str(input)}`)
-            if (output) Flog.i(_WatchCrypto.TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}; output_b64=${_CastHelper.b2b64str(output)}`)
+            if (input) Flog.i(_WatchCrypto.Cipher_TAG, `input=${input}; input_str=${_CastHelper.b2str(input)}; input_b64=${_CastHelper.b2b64str(input)}`)
+            if (output) Flog.i(_WatchCrypto.Cipher_TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}; output_b64=${_CastHelper.b2b64str(output)}`)
             _Helper.printStack("Cipher_doFinal")
             return ret;
         }
