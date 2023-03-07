@@ -9,15 +9,112 @@ import MethodImplementation = Java.MethodImplementation;
 
 export class _WatchCrypto {
     static readonly TAG: string = "WatchCrypto"
+    static readonly HMac_TAG: string = "Hmac"
 
     protected static Cipher_clazz: Wrapper;
     protected static MessageDigest_clazz: Wrapper;
+    protected static Mac_clazz: Wrapper;
 
     static watch_crypto(): void {
         Java.perform(() => {
             this.watch_cipher();
             this.watch_digest();
+            this.watch_mac();
         })
+    }
+
+    /**
+     * 监控hmac系列加解密
+     */
+    static watch_mac(): void {
+        Java.perform(() => {
+            this.Mac_clazz = Java.use("javax.crypto.Mac");
+            this.hook_Mac_init();
+            this.hook_Mac_update();
+            this.hook_Mac_doFinal();
+        })
+    }
+
+    protected static hook_Mac_init() {
+        const Mac_init: MethodDispatcher = this.Mac_clazz["init"]
+        const initImpl: MethodImplementation = function () {
+            let params: Wrapper | null = null;
+            let ret = this["init"].apply(this, arguments)
+            Flog.line(_WatchCrypto.HMac_TAG, `${this}.init():${this.algorithm.value}`)
+            let key: Wrapper = arguments[0];
+            let key_algorithm = key["getAlgorithm"]();
+            let key_format = key["getFormat"]();
+            let key_encoded = key["getEncoded"]();
+            if (arguments.length == 2) {
+                // .overload('java.security.Key', 'java.security.spec.AlgorithmParameterSpec')
+                params = arguments[1]
+            }
+            if (key) Flog.i(_WatchCrypto.HMac_TAG, `key info: algorithm=${key_algorithm}; format=${key_format}; encoded=${key_encoded}; key_str=${_CastHelper.b2str(key_encoded)}; key_b64=${_CastHelper.b2b64str(key_encoded)}`)
+            if (params) Flog.i(_WatchCrypto.HMac_TAG, `params=${params.toString()}`)
+            _Helper.printStack("Mac_init")
+            return ret;
+        }
+        Mac_init.overload('java.security.Key').implementation = initImpl
+        Mac_init.overload('java.security.Key', 'java.security.spec.AlgorithmParameterSpec').implementation = initImpl
+
+    }
+
+    protected static hook_Mac_update() {
+        const Mac_update: MethodDispatcher = this.Mac_clazz["update"];
+        const updateImpl: MethodImplementation = function () {
+            let input: Wrapper;
+            let ret = this["update"].apply(this, arguments)
+            Flog.line(_WatchCrypto.HMac_TAG, `${this}.update():${this.algorithm.value}`)
+            if (arguments[0].$className != undefined) {
+                input = arguments[0].array();
+            } else {
+                input = arguments[0];
+            }
+            let input_str: string
+            if (typeof input === "number") {
+                input_str = `[byte 0x${(<number>input).toString(16)}]`
+            } else {
+                input_str = _CastHelper.b2str(input)
+            }
+            if (input) Flog.i(_WatchCrypto.HMac_TAG, `input=${input}; input_str=${input_str}; input_b64=${_CastHelper.b2b64str(input)}`)
+            _Helper.printStack("Mac_update")
+            return ret;
+        }
+
+        Mac_update.overload('byte').implementation = updateImpl;
+        Mac_update.overload('java.nio.ByteBuffer').implementation = updateImpl;
+        Mac_update.overload('[B').implementation = updateImpl;
+        Mac_update.overload('[B', 'int', 'int').implementation = updateImpl;
+
+    }
+
+    protected static hook_Mac_doFinal() {
+        const Mac_doFinal: MethodDispatcher = this.Mac_clazz["doFinal"]
+        const doFinalImpl: MethodImplementation = function () {
+            let output: Wrapper | null;
+            let ret = this["doFinal"].apply(this, arguments)
+            Flog.line(_WatchCrypto.HMac_TAG, `${this}.doFinal():${this.algorithm.value}`)
+            switch (arguments.length) {
+                case 0:
+                    output = ret;
+                    break;
+                case 2:
+                    output = arguments[0];
+                    break;
+                default:
+                    output = null;
+                    break;
+            }
+            if (output) Flog.i(_WatchCrypto.HMac_TAG, `output=${output}; output_hex=${_CastHelper.b2hex(output)}`)
+            _Helper.printStack("Mac_doFinal")
+            return ret;
+        }
+
+
+        Mac_doFinal.overload().implementation = doFinalImpl
+        // Mac_doFinal.overload('[B').implementation = doFinalImpl
+        Mac_doFinal.overload('[B', 'int').implementation = doFinalImpl
+
     }
 
     static watch_digest(): void {
