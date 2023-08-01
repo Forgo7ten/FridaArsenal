@@ -34,7 +34,7 @@ export class _HookClazz {
                                 _HookClazz.hookMethodAllOverloads(class_name, method.getName(), printStack);
                             })
                         } catch (error) {
-                            // Flog.e(_HookClazz.TAG, `hookSomeClasses failed: ${class_name}->${error}`)
+                            Flog.d(_HookClazz.TAG, `Hook ${class_name} failed, ERROR: ${error}`)
                         }
                     }
                 },
@@ -47,17 +47,22 @@ export class _HookClazz {
 
     /**
      * 对某个特定的类的所有方法进行hook（拒绝搜索）
-     * @param {*} clsName 特定的类名
+     * @param {string|Wrapper} cls 特定的类名、或者类Wrapper
      * @param printStack 是否打印调用栈，默认不打印
      */
-    static hookSpecificClass(clsName: string, printStack: boolean = false) {
+    static hookSpecificClass(cls: string | Wrapper, printStack: boolean = false) {
         Java.perform(function () {
             try {
-                let TargetClass: Wrapper = Java.use(clsName);
+                let TargetClass: Wrapper;
+                if (typeof cls === "string") {
+                    TargetClass = Java.use(cls);
+                } else {
+                    TargetClass = cls;
+                }
                 let methodsList: Wrapper[] = TargetClass.class.getDeclaredMethods();
-                Flog.i(_HookClazz.TAG, `Hook ${clsName} has ${methodsList.length} methods.`);
+                Flog.i(_HookClazz.TAG, `Hook ${cls} has ${methodsList.length} methods.`);
                 methodsList.forEach((method) => {
-                    _HookClazz.hookMethodAllOverloads(clsName, method.getName(), printStack);
+                    _HookClazz.hookMethodAllOverloads(cls, method.getName(), printStack);
                 });
             } catch (error) {
                 Flog.e(_HookClazz.TAG, `hookSpecificClass failed: ${error}`)
@@ -67,41 +72,43 @@ export class _HookClazz {
 
     /**
      * hook方法的每一个重载
-     * @param {String} className 要hook的类名
+     * @param {String|Wrapper} cls 要hook的类名
      * @param {String} methodName 要hook的方法名
      * @param printStack 是否打印调用栈，默认不打印
      */
-    static hookMethodAllOverloads(className: string, methodName: string, printStack: boolean = false) {
+    static hookMethodAllOverloads(cls: string | Wrapper, methodName: string, printStack: boolean = false) {
         let overloadsLength = 0;
         Java.perform(function () {
             try {
-                let clazz: Wrapper = Java.use(className);
+                let clazz: Wrapper;
+                if (typeof cls === "string") {
+                    clazz = Java.use(cls);
+                } else {
+                    clazz = cls;
+                }
                 overloadsLength = clazz[methodName].overloads.length;
                 for (let methodImp of clazz[methodName].overloads) {
                     methodImp.implementation = function () {
                         // 主动调用原方法获得结果
                         let result = this[methodName].apply(this, arguments);
-                        let paramStr = "";
+                        let paramsStr = "";
                         // 遍历arguments
-                        for (let j = 0; j < arguments.length; j++) {
-                            if (j == arguments.length - 1) {
-                                paramStr += arguments[j].toString();
-                            } else {
-                                paramStr += arguments[j].toString() + ",";
-                            }
+                        for (let j = 0; j < arguments.length - 1; j++) {
+                            paramsStr += (arguments[j] === null ? "NULL" : arguments[j].toString()) + ", ";
                         }
+                        paramsStr += arguments[arguments.length - 1] === null ? "NULL" : arguments[arguments.length - 1].toString();
                         // 打印参数以及结果
-                        Flog.i(_HookClazz.TAG, `Called ${className}.${methodName}(${paramStr}) : ${result}`);
+                        Flog.i(_HookClazz.TAG, `Called ${cls}.${methodName}(${paramsStr}) : ${result}`);
                         if (printStack) {
-                            _Helper.printStack(`${className}.${methodName}`)
+                            _Helper.printStack(`${cls}.${methodName}`)
                         }
                         return result;
                     };
                 }
             } catch (error) {
-                Flog.w(`${className}.${methodName}()hook failed:${error}`);
+                Flog.w(`${cls}.${methodName}()hook failed:${error}`);
             }
-            Flog.d(_HookClazz.TAG, `\t ${className}.${methodName}[${overloadsLength}] has hooked.`);
+            Flog.d(_HookClazz.TAG, `\t ${cls}.${methodName}[${overloadsLength}] has hooked.`);
         });
     }
 }

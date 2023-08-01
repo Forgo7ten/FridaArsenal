@@ -14,16 +14,17 @@ export class _CastHelper {
      * @return string 字节数组变为的字符串
      */
     static b2str(bytes: Wrapper): string {
+        let array;
         try {
             if (bytes.$className == '[B') {
                 // @ts-ignore
-                bytes = Java.array("byte", bytes)
+                array = Java.array("byte", bytes)
             }
-            return this.String_clazz.$new(bytes)
+            return this.String_clazz.$new(array)
         } catch (error) {
-            Flog.d(this.TAG, `b2str argument type error.`)
-            // @ts-ignore
-            return bytes;
+            let logStr = `b2str(${bytes}) error: ${error}`
+            Flog.e(this.TAG, logStr)
+            return logStr;
         }
     }
 
@@ -33,16 +34,17 @@ export class _CastHelper {
      * @return string base64字符串
      */
     static b2b64str(bytes: Wrapper): string {
+        let array;
         try {
             if (bytes.$className == '[B') {
                 // @ts-ignore
-                bytes = Java.array("byte", bytes)
+                array = Java.array("byte", bytes)
             }
-            return this.Base64_clazz["encodeToString"](bytes, 0);
+            return this.Base64_clazz["encodeToString"](array, 0);
         } catch (error) {
-            Flog.d(this.TAG, `b2b64str argument type error.`)
-            // @ts-ignore
-            return bytes;
+            let logStr = `b2b64str(${bytes}) error: ${error}`
+            Flog.e(this.TAG, logStr)
+            return logStr;
         }
     }
 
@@ -52,16 +54,17 @@ export class _CastHelper {
      * @return string hex字符串
      */
     static b2hex(bytes: Wrapper): string {
+        let array;
         try {
             if (bytes.$className == '[B') {
                 // @ts-ignore
-                bytes = Java.array("byte", bytes)
+                array = Java.array("byte", bytes)
             }
-            return this.ByteString_clazz.of(bytes).hex()
+            return this.ByteString_clazz.of(array).hex()
         } catch (error) {
-            Flog.d(this.TAG, `b2hex argument type error.`)
-            // @ts-ignore
-            return bytes;
+            let logStr = `b2hex(${bytes}) error: ${error}`
+            Flog.e(this.TAG, logStr)
+            return logStr;
         }
     }
 }

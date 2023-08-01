@@ -29,7 +29,7 @@ export class _FindClassloader {
      */
     static findClassLoaderSync(className: string): Wrapper | void {
         if (className == undefined) {
-            Flog.w(_FindClassloader.TAG, "className==undefined, return");
+            Flog.e(_FindClassloader.TAG, "className == undefined, return");
             return;
         }
         let clsLoaders: Wrapper[] = Java.enumerateClassLoadersSync();
@@ -65,7 +65,7 @@ export class _FindClassloader {
             onMatch: function (loader: Wrapper) {
                 try {
                     if (found) return;
-                    Flog.d(_FindClassloader.TAG, `Found loader: ${loader}`)
+                    // Flog.d(_FindClassloader.TAG, `Found loader: ${loader}`)
                     // 如果找到的类加载器 能加载的类有[class_name]//
                     if (loader.findClass(className)) {
                         // @ts-ignore
@@ -78,7 +78,7 @@ export class _FindClassloader {
                 }
             },
             onComplete: function () {
-                Flog.i(_FindClassloader.TAG, "findClassLoader End");
+                Flog.d(_FindClassloader.TAG, "findClassLoader End");
             },
         });
 

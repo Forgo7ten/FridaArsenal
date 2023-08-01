@@ -6,6 +6,8 @@ export class _Helper {
     private static __jclazz: Wrapper;
     private static __jobj: Wrapper;
 
+    static readonly TAG: string = "Helper";
+
     /**
      * 检查类名，过滤系统类和基本类型。返回false表示命中，需要过滤掉
      * @param name 类名
@@ -33,9 +35,9 @@ export class _Helper {
      * @returns 对象的全类名
      */
     static getObjClassName(obj: Wrapper): string {
-        _Helper.__jclazz = _Helper.__jclazz || Java.use("java.lang.Class");
-        _Helper.__jobj = _Helper.__jobj || Java.use("java.lang.Object");
-        return _Helper.__jclazz.getName.call(_Helper.__jobj.getClass.call(obj));
+        this.__jclazz = this.__jclazz || Java.use("java.lang.Class");
+        this.__jobj = this.__jobj || Java.use("java.lang.Object");
+        return this.__jclazz.getName.call(this.__jobj.getClass.call(obj));
     }
 
 
@@ -43,10 +45,11 @@ export class _Helper {
      * Java.cast java对象
      * @param jobj java对象
      * @param cls 认为的该对象可能的类名或类，可省略
-     * @returns 强转之后的
+     * @returns 强转之后的Java Wrapper
      */
-    static getWrapper(jobj: Wrapper, cls: Wrapper | string | null = null): Wrapper | null {
+    static getWrapper(jobj: Wrapper, cls: Wrapper | string = null): Wrapper {
         if (jobj == null) {
+            Flog.e(this.TAG, `getWrapper() jobj == null`);
             return null;
         }
         try {
@@ -57,7 +60,7 @@ export class _Helper {
                 return Java.cast(jobj, cls);
             }
         } catch (error) {
-            Flog.e(`ERROR:${error}`)
+            Flog.e(this.TAG, `getWrapper(${jobj}) ERROR:${error}`)
         }
         return null;
     }
@@ -87,14 +90,15 @@ export class _Helper {
      * @param {string} fieldName 字段名
      * @returns 对象成员的值或null
      */
-    static getFieldValue(object: Wrapper, fieldName: string): Wrapper | null {
+    static getFieldValue(object: Wrapper, fieldName: string): Wrapper {
         let field = object.class.getDeclaredField(fieldName);
-        field.setAccessible(true)
-        let fieldValue = field.get(object)
+        field.setAccessible(true);
+        let fieldValue = field.get(object);
         if (null === fieldValue) {
+            Flog.w(this.TAG, `getFieldValue(${object.$className}, ${fieldName}) = NULL`);
             return null;
         }
-        return this.getWrapper(fieldValue)
+        return this.getWrapper(fieldValue);
     }
 
 
@@ -203,7 +207,7 @@ export class _Helper {
      * @param {object} obj 要转成json的对象
      * @returns json字符串
      */
-    static toGson(obj: Wrapper): string | undefined {
+    static toGson(obj: Wrapper): string {
         try {
             if (this.__gson_obj == null) {
                 Java.openClassFile("/data/local/tmp/fgson.dex").load();
@@ -212,7 +216,7 @@ export class _Helper {
             return this.__gson_obj.$new().toJson(obj);
         } catch (error) {
             // md5sum fgson.dex: a7c58b60a7339e6a1207d5207c847bd5  fgson.dex
-            Flog.e("toGson", `Please install the jar into the device first. ${error}`)
+            Flog.e("toGson", `Please install the jar into the device first. ERROR: ${error}`)
         }
     }
 
@@ -233,6 +237,44 @@ export class _Helper {
             Memory.writeS8(ptr.add(i), array[i]);
         }
         //console.log(hexdump(ptr, { offset: off, length: len, header: false, ansi: false }));
-        console.log(hexdump(ptr, {offset: off == 0 ? 0 : off, length: len, header: false, ansi: false}));
+        Flog.i(hexdump(ptr, {offset: off == 0 ? 0 : off, length: len, header: false, ansi: false}));
+    }
+
+    /**
+     * 打印JavaMap
+     * @param map Map变量
+     */
+    static printMap(map: any): void {
+        map = Java.cast(map, Java.use("java.util.HashMap"));
+        // 1.
+        let key_iterator = map.keySet().iterator();
+        while (key_iterator.hasNext()) {
+            let key = key_iterator.next().toString();
+            let value = map.get(key).toString();
+            Flog.i("printMap", key + ": " + value);
+        }
+    }
+
+    /**
+     * 打印List列表
+     * @param list 任意列表
+     */
+    static printList(list: any): void {
+        let len = list.size();
+        let logStr = `${list} `;
+        for (let i = 0; i < len - 1; i++) {
+            logStr += `${list.get(i)}, `;
+        }
+        logStr += `${list.get(len - 1)}`;
+        Flog.i("printList", logStr);
+    }
+
+    /**
+     * 打印Array数组
+     * @param array 任意数组
+     */
+    static printArray(array: any): void {
+        // @ts-ignore
+        Flog.i("printArray", Java.use("java.util.Arrays").toString(array));
     }
 }
