@@ -243,29 +243,33 @@ export class _Helper {
     /**
      * 打印JavaMap
      * @param map Map变量
+     * @param separator 分隔符
      */
-    static printMap(map: any): void {
-        map = Java.cast(map, Java.use("java.util.HashMap"));
-        // 1.
+    static printMap(map: any, separator: string = "\n"): void {
+        map = this.getWrapper(map);
+        let logStr = "";
         let key_iterator = map.keySet().iterator();
         while (key_iterator.hasNext()) {
             let key = key_iterator.next().toString();
             let value = map.get(key).toString();
-            Flog.i("printMap", key + ": " + value);
+            logStr += `${key}:${value}${separator}`
         }
+        logStr = logStr.slice(0, (0 - separator.length));
+        Flog.i("printMap", logStr);
     }
 
     /**
      * 打印List列表
      * @param list 任意列表
+     * @param separator 分隔符
      */
-    static printList(list: any): void {
+    static printList(list: any, separator: string = "; "): void {
         let len = list.size();
-        let logStr = `${list} `;
+        let logStr = "";
         for (let i = 0; i < len - 1; i++) {
-            logStr += `${list.get(i)}, `;
+            logStr += `[${i}]${list.get(i)}${separator}`;
         }
-        logStr += `${list.get(len - 1)}`;
+        logStr += `[${len - 1}]${list.get(len - 1)}`;
         Flog.i("printList", logStr);
     }
 
