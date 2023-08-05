@@ -20,7 +20,7 @@ export namespace android {
     export class HookClazz extends _HookClazz {
     }
 
-    export class Anit extends _Anti {
+    export class Anti extends _Anti {
 
     }
 

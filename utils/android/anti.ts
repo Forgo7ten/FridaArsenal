@@ -7,8 +7,8 @@ export class _Anti {
     /**
      * 对栈进行hook，并过滤栈信息
      */
-    static filter_stack() {
-        const TAG = "filter_stack"
+    static filterStack() {
+        const TAG = "filterStack"
 
         // TODO: Xposed用户模块的函数调用栈，未能成功过滤
         /**
@@ -69,39 +69,130 @@ export class _Anti {
     }
 
     /**
-     * 过滤SystemProperty中的代理检测
-     * TODO: 可拓展为针对特定的属性返回特定的值 的类(通过Map)
+     * 存放修改后的SystemProp
+     * @protected
      */
-    static filterSystemProxy() {
-        const TAG = "filterSystemProxy";
+    protected static propsMap = new Map<string, any>([
+        // 代理检测
+        ["http.proxyHost", null],
+        ["http.proxyPort", null],
+        ["https.proxyHost", null],
+        ["https.proxyPort", null],
+    ]);
+
+    protected static __props_watch_FLAG = false;
+    protected static __props_filter_FLAG = false;
+
+    /**
+     * 过滤并替换系统props
+     * @param key 要过滤的key
+     * @param value key对应的值
+     */
+    static filterProps(key: string = null, value: any = null): void {
+        if (key !== null) this.propsMap.set(key, value);
+        this.__props_filter_FLAG = true;
+        this.hookProps();
+    }
+
+    /**
+     * 监控系统props读取
+     */
+    static watchProps(): void {
+        this.__props_watch_FLAG = true;
+        this.hookProps();
+    }
+
+    /**
+     * 对读取系统prop相关方法进行hook
+     */
+    private static hookProps() {
+        const TAG = "watchProps";
         Java.perform(function () {
-            let System = Java.use("java.lang.System")
-            // 过滤代理
-            let nullProperties = ["http.proxyHost", "http.proxyPort", "https.proxyHost", "https.proxyPort"]
-
-            function hitRule(propertyStr: string) {
-                nullProperties.forEach((nullProperty) => {
-                    if (propertyStr.indexOf(nullProperty) >= 0) {
-                        Flog.d(TAG, "Hit->${propertyStr}")
-                        return true;
+            let Properties = Java.use("java.util.Properties");
+            Properties["getProperty"].overload('java.lang.String').implementation = function (key) {
+                let value = this["getProperty"](key);
+                if (_Anti.__props_watch_FLAG) {
+                    Flog.d(TAG, `Properties.getProperty(${key})=${value}`);
+                }
+                if (_Anti.__props_filter_FLAG) {
+                    const filterValue = _Anti.propsMap.get(key);
+                    if (filterValue !== undefined) {
+                        value = filterValue;
+                        if (_Anti.__props_watch_FLAG) Flog.d(TAG, `modified! Properties.getProperty(${key})=${value}`);
                     }
-                })
-                return false;
-            }
-
-            System["getProperty"].overload('java.lang.String').implementation = function (str: string) {
-                if (hitRule(str)) {
-                    return null
                 }
-                let ret = this.getProperty(str)
-                return ret
+                return value;
             }
-            System["getProperty"].overload('java.lang.String', 'java.lang.String').implementation = function (str1: string, str2: string) {
-                if (hitRule(str1)) {
-                    return null;
+            let SystemProperties = Java.use("android.os.SystemProperties");
+            SystemProperties["native_get"].overload('java.lang.String').implementation = function (key) {
+                let value = this["native_get"](key);
+                if (_Anti.__props_watch_FLAG) {
+                    Flog.d(TAG, `SystemProperties.get(${key})=${value}`);
                 }
-                let ret = this.getProperty(str1, str2)
-                return ret
+                if (_Anti.__props_filter_FLAG) {
+                    const filterValue = _Anti.propsMap.get(key);
+                    if (filterValue !== undefined) {
+                        value = filterValue;
+                        if (_Anti.__props_watch_FLAG) Flog.d(TAG, `modified! SystemProperties.get(${key})=${value}`);
+                    }
+                }
+                return value;
+            }
+            SystemProperties["native_get"].overload('java.lang.String', 'java.lang.String').implementation = function (key, def) {
+                let value = this["native_get"](key, def);
+                if (_Anti.__props_watch_FLAG) {
+                    Flog.d(TAG, `SystemProperties.get(${key},${def})=${value}`);
+                }
+                if (_Anti.__props_filter_FLAG) {
+                    const filterValue = _Anti.propsMap.get(key);
+                    if (filterValue !== undefined) {
+                        value = filterValue;
+                        if (_Anti.__props_watch_FLAG) Flog.d(TAG, `modified! SystemProperties.get(${key},${def})=${value}`);
+                    }
+                }
+                return value;
+            }
+            SystemProperties["native_get_int"].overload('java.lang.String', 'int').implementation = function (key, def) {
+                let value = this["native_get_int"](key, def);
+                if (_Anti.__props_watch_FLAG) {
+                    Flog.d(TAG, `SystemProperties.getInt(${key},${def})=${value}`);
+                }
+                if (_Anti.__props_filter_FLAG) {
+                    const filterValue = _Anti.propsMap.get(key);
+                    if (filterValue !== undefined) {
+                        value = filterValue;
+                        if (_Anti.__props_watch_FLAG) Flog.d(TAG, `modified! SystemProperties.getInt(${key},${def})=${value}`);
+                    }
+                }
+                return value;
+            }
+            SystemProperties["native_get_long"].overload('java.lang.String', 'long').implementation = function (key, def) {
+                let value = this["native_get_long"](key, def);
+                if (_Anti.__props_watch_FLAG) {
+                    Flog.d(TAG, `SystemProperties.getLong(${key},${def})=${value}`);
+                }
+                if (_Anti.__props_filter_FLAG) {
+                    const filterValue = _Anti.propsMap.get(key);
+                    if (filterValue !== undefined) {
+                        value = filterValue;
+                        if (_Anti.__props_watch_FLAG) Flog.d(TAG, `modified! SystemProperties.getLong(${key},${def})=${value}`);
+                    }
+                }
+                return value;
+            }
+            SystemProperties["native_get_boolean"].overload('java.lang.String', 'boolean').implementation = function (key, def) {
+                let value = this["native_get_boolean"](key, def);
+                if (_Anti.__props_watch_FLAG) {
+                    Flog.d(TAG, `SystemProperties.getBoolean(${key},${def})=${value}`);
+                }
+                if (_Anti.__props_filter_FLAG) {
+                    const filterValue = _Anti.propsMap.get(key);
+                    if (filterValue !== undefined) {
+                        value = filterValue;
+                        if (_Anti.__props_watch_FLAG) Flog.d(TAG, `modified! SystemProperties.getBoolean(${key},${def})=${value}`);
+                    }
+                }
+                return value;
             }
         })
     }
