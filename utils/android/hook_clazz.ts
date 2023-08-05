@@ -89,19 +89,26 @@ export class _HookClazz {
                 overloadsLength = clazz[methodName].overloads.length;
                 for (let methodImp of clazz[methodName].overloads) {
                     methodImp.implementation = function () {
-                        // 主动调用原方法获得结果
-                        let result = this[methodName].apply(this, arguments);
+                        let checkNum = Math.floor(Math.random() * 90000) + 10000
                         let paramsStr = "";
                         // 遍历arguments
-                        for (let j = 0; j < arguments.length - 1; j++) {
-                            paramsStr += (arguments[j] === null ? "NULL" : arguments[j].toString()) + ", ";
+                        for (let j = 0; j < arguments.length; j++) {
+                            let paramStr = ""
+                            try {
+                                paramStr = `${arguments[j].toString()}, `
+                            } catch (e) {
+                                paramStr = `${arguments[j]}, `
+                            }
+                            paramsStr += paramStr;
                         }
-                        paramsStr += arguments[arguments.length - 1] === null ? "NULL" : arguments[arguments.length - 1].toString();
-                        // 打印参数以及结果
-                        Flog.i(_HookClazz.TAG, `Called ${cls}.${methodName}(${paramsStr}) : ${result}`);
+                        paramsStr = paramsStr.slice(0, -2)
                         if (printStack) {
-                            _Helper.printStack(`${cls}.${methodName}`)
+                            _Helper.printStack(`${cls}.${methodName}-[${checkNum}]`)
                         }
+                        // 主动调用原方法获得结果
+                        let result = this[methodName].apply(this, arguments);
+                        // 打印参数以及结果
+                        Flog.i(_HookClazz.TAG, `Called ${cls}.${methodName}-[${checkNum}](${paramsStr}) : ${result}`);
                         return result;
                     };
                 }
