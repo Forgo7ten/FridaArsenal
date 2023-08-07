@@ -241,6 +241,24 @@ export class _Helper {
     }
 
     /**
+     * 打印Java Set数据
+     * @param set Set变量
+     * @param separator 分隔符
+     */
+    static printSet(set: any, separator: string = "\n"): void {
+        set = this.getWrapper(set);
+        let logStr = "";
+        let iterator = set.iterator();
+        let i = 0;
+        while (iterator.hasNext()) {
+            logStr += `[${i}]${iterator.next()}${separator}`;
+            i++;
+        }
+        logStr = logStr.slice(0, (0 - separator.length));
+        Flog.i("printSet", logStr);
+    }
+
+    /**
      * 打印JavaMap
      * @param map Map变量
      * @param separator 分隔符
@@ -250,8 +268,8 @@ export class _Helper {
         let logStr = "";
         let key_iterator = map.keySet().iterator();
         while (key_iterator.hasNext()) {
-            let key = key_iterator.next().toString();
-            let value = map.get(key).toString();
+            let key = key_iterator.next();
+            let value = map.get(key);
             logStr += `${key}:${value}${separator}`
         }
         logStr = logStr.slice(0, (0 - separator.length));
@@ -274,11 +292,19 @@ export class _Helper {
     }
 
     /**
-     * 打印Array数组
+     * 获得[] Array数组的打印字符串
+     * @param array Java任意数组[]
+     */
+    static getArrStr(array: any): string {
+        // @ts-ignore
+        return Java.use("java.util.Arrays").toString(array);
+    }
+
+    /**
+     * 打印[] Array数组
      * @param array 任意数组
      */
     static printArray(array: any): void {
-        // @ts-ignore
-        Flog.i("printArray", Java.use("java.util.Arrays").toString(array));
+        Flog.i("printArray", this.getArrStr(array));
     }
 }
