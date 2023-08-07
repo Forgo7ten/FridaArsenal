@@ -10,61 +10,52 @@ export class _CastHelper {
 
     /**
      * 接受java的byte[]，将其转换成string并返回
+     * ！！！禁止byte[]之外的类型
      * @param bytes java的byte[]数组
      * @return string 字节数组变为的字符串
      */
-    static b2str(bytes: Wrapper): string {
+    static b2str(bytes: any[]): string {
         let array;
         try {
-            if (bytes.$className == '[B') {
-                // @ts-ignore
-                array = Java.array("byte", bytes)
-            }
+            array = Java.array("byte", bytes);
             return this.String_clazz.$new(array)
         } catch (error) {
-            let logStr = `b2str(${bytes}) error: ${error}`
-            Flog.e(this.TAG, logStr)
-            return logStr;
+            Flog.e(this.TAG, `b2str(${bytes}) error: ${error}`)
+            return null;
         }
     }
 
     /**
      * 接受java的byte[]，将其编码成base64字符串并返回
+     * ！！！禁止byte[]之外的类型
      * @param bytes java的byte[]数组
      * @return string base64字符串
      */
-    static b2b64str(bytes: Wrapper): string {
+    static b2b64str(bytes: any[]): string {
         let array;
         try {
-            if (bytes.$className == '[B') {
-                // @ts-ignore
-                array = Java.array("byte", bytes)
-            }
+            array = Java.array("byte", bytes)
             return this.Base64_clazz["encodeToString"](array, 0);
         } catch (error) {
-            let logStr = `b2b64str(${bytes}) error: ${error}`
-            Flog.e(this.TAG, logStr)
-            return logStr;
+            Flog.e(this.TAG, `b2b64str(${bytes}) error: ${error}`)
+            return null;
         }
     }
 
     /**
      * 接受java的byte[]，将其编码成hex字符串并返回
+     * ！！！禁止byte[]之外的类型
      * @param bytes java的byte[]数组
      * @return string hex字符串
      */
-    static b2hex(bytes: Wrapper): string {
+    static b2hex(bytes: any[]): string {
         let array;
         try {
-            if (bytes.$className == '[B') {
-                // @ts-ignore
-                array = Java.array("byte", bytes)
-            }
+            array = Java.array("byte", bytes)
             return this.ByteString_clazz.of(array).hex()
         } catch (error) {
-            let logStr = `b2hex(${bytes}) error: ${error}`
-            Flog.e(this.TAG, logStr)
-            return logStr;
+            Flog.e(this.TAG, `b2hex(${bytes}) error: ${error}`)
+            return null;
         }
     }
 }
