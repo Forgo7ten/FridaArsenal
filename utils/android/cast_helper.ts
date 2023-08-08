@@ -14,7 +14,7 @@ export class _CastHelper {
      * @param bytes java的byte[]数组
      * @return string 字节数组变为的字符串
      */
-    static b2str(bytes: any[]): string {
+    static b2str(bytes: any): string {
         let array;
         try {
             array = Java.array("byte", bytes);
@@ -31,7 +31,7 @@ export class _CastHelper {
      * @param bytes java的byte[]数组
      * @return string base64字符串
      */
-    static b2b64str(bytes: any[]): string {
+    static b2b64str(bytes: any): string {
         let array;
         try {
             array = Java.array("byte", bytes)
@@ -48,7 +48,7 @@ export class _CastHelper {
      * @param bytes java的byte[]数组
      * @return string hex字符串
      */
-    static b2hex(bytes: any[]): string {
+    static b2hex(bytes: any): string {
         let array;
         try {
             array = Java.array("byte", bytes)
