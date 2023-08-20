@@ -197,7 +197,7 @@ export class _Helper {
     static printStack(TAG: string = ""): void {
         console.log("========================================  " + TAG + " Stack strat  ========================================");
         console.log(this.getStack());
-        console.log("========================================  " + TAG + " Stack end  ========================================\r\n");
+        console.log("=========================================  " + TAG + " Stack end  =========================================\r\n");
     }
 
     private static __gson_obj: Wrapper | null = null;
