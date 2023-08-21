@@ -1,3 +1,4 @@
+import {SoHookerHandler} from "./entity/SoHookerHandler";
 import {common} from "../common";
 import Flog = common.Flog;
 
@@ -5,23 +6,22 @@ export class _NHookHelper {
     static readonly TAG: string = "NHookHelper";
 
     /**
-     * 在so初始化之前hook
-     * TODO: 目前只能hook一个so，可以添加一个Map数组改写成hook多个so、执行多个回调函数（addHookBeforeSoInit）
+     * 在so初始化之前hook（只能hook一个so，尽量使用addHookBeforeSoInit）
      * @param soname 要hook的so的名称，如libxxx.so
      * @param callback 自定义需要执行的回调函数
      */
-    static hookBeforeSoInit(soname: string, callback: () => void): void {
+    static hookBeforeSoInitOld(soname: string, callback: (soModule: Module) => void): void {
         let linker_m = Process.findModuleByName("linker");
         let linker64_m = Process.findModuleByName("linker64");
         let call_constructors_addr = null;
         let hooked = false;
         let symbols;
-        if (linker_m) {
-            symbols = linker_m.enumerateSymbols();
-            Flog.i(_NHookHelper.TAG, `The [linker] has been hooked.`)
-        } else if (linker64_m) {
+        if (linker64_m) {
             symbols = linker64_m.enumerateSymbols();
-            Flog.i(_NHookHelper.TAG, `The [linker64] has been hooked.`)
+            Flog.d(_NHookHelper.TAG, `The [linker64] has been hooked.`)
+        } else if (linker_m) {
+            symbols = linker_m.enumerateSymbols();
+            Flog.d(_NHookHelper.TAG, `The [linker] has been hooked.`)
         } else {
             Flog.e(_NHookHelper.TAG, `No [linker] or [linker64] found.`)
             return;
@@ -36,12 +36,36 @@ export class _NHookHelper {
         Interceptor.attach(call_constructors_addr, {
             onEnter: function (args) {
                 // Flog.d(_NHookHelper.TAG, `Called call_constructors`)
-                if (Process.findModuleByName(soname) && !hooked) {
-                    callback();
+                let so = Process.findModuleByName(soname)
+                if (so && !hooked) {
+                    callback(so);
                     hooked = true;
                 }
             }
         })
+    }
+
+    /**
+     * hook控制，管理所有SoHook任务
+     * @protected
+     */
+    protected static hookerHandler: SoHookerHandler = new SoHookerHandler();
+
+    /**
+     * 添加对某个so的hook
+     * @param soname 要hook的so的名称，如libxxx.so
+     * @param callback 自定义需要执行的回调函数
+     */
+    static addHookBeforeSoInit(soname: string, callback: (soModule: Module) => void): void {
+        this.hookerHandler.addHooker(soname, callback);
+    }
+
+    static removeHookBeforeSoInit(soname: string): void {
+        this.hookerHandler.removeHooker(soname);
+    }
+
+    static clearHooksBeforeSoInit(): void {
+        this.hookerHandler.clearHookers();
     }
 
 }
