@@ -1,4 +1,3 @@
-import {_NHookHelper} from "../hook_helper";
 import {common} from "../../common";
 import Flog = common.Flog;
 
@@ -165,20 +164,15 @@ export class SoHookerHandler {
         if (!hookerHandler.isNeedUpdate()) {
             return;
         }
-        let linker_m = Process.findModuleByName("linker");
-        let linker64_m = Process.findModuleByName("linker64");
-        let call_constructors_addr = null;
-        let symbols;
-        if (linker64_m) {
-            symbols = linker64_m.enumerateSymbols();
-            // Flog.d(_NHookHelper.TAG, `The [linker64] has been hooked.`)
-        } else if (linker_m) {
-            symbols = linker_m.enumerateSymbols();
-            // Flog.d(_NHookHelper.TAG, `The [linker] has been hooked.`)
+        let linker_m;
+        if (Process.pointerSize == 4) {
+            linker_m = Process.findModuleByName("linker");
         } else {
-            Flog.e(_NHookHelper.TAG, `No [linker] or [linker64] found.`)
-            return;
+            linker_m = Process.findModuleByName("linker64");
         }
+        let call_constructors_addr = null;
+        let symbols = linker_m.enumerateSymbols();
+        // Flog.d(_NHookHelper.TAG, `The [linker] has been hooked.`)
         for (let i = 0; i < symbols.length; i++) {
             let sym_name = symbols[i].name;
             if (sym_name.includes(`soinfo`) && sym_name.includes(`call_constructors`)) {
