@@ -1,4 +1,6 @@
 import {SoHookerHandler} from "./entity/SoHookerHandler";
+import {common} from "../common";
+import Flog = common.Flog;
 
 export class _NHookHelper {
     static readonly TAG: string = "NHookHelper";
@@ -13,8 +15,10 @@ export class _NHookHelper {
         let linker_m;
         if (Process.pointerSize == 4) {
             linker_m = Process.findModuleByName("linker");
-        } else {
+        } else if(Process.pointerSize == 8){
             linker_m = Process.findModuleByName("linker64");
+        }else {
+            Flog.e(`Not found linker.`)
         }
         let call_constructors_addr = null;
         let symbols = linker_m.enumerateSymbols();
@@ -45,6 +49,7 @@ export class _NHookHelper {
 
     /**
      * 添加对某个so的hook
+     * 好像只能用地址偏移查找
      * @param soname 要hook的so的名称，如libxxx.so
      * @param callback 自定义需要执行的回调函数
      */

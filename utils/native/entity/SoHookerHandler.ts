@@ -167,8 +167,10 @@ export class SoHookerHandler {
         let linker_m;
         if (Process.pointerSize == 4) {
             linker_m = Process.findModuleByName("linker");
-        } else {
+        } else if(Process.pointerSize == 8){
             linker_m = Process.findModuleByName("linker64");
+        }else {
+            Flog.e(`Not found linker.`)
         }
         let call_constructors_addr = null;
         let symbols = linker_m.enumerateSymbols();
