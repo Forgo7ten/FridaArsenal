@@ -6,6 +6,45 @@ import Flog = common.Flog;
 export class _HookClazz {
     static readonly TAG: string = "HookClazz";
 
+    /**
+     * Hook某个类的某个方法
+     * @param clsFilterFunc 类过滤，不符合的(false)被过滤掉
+     * @param methodFilterFunc 方法过滤，不符合的(false)被过滤掉
+     * @param printStack 是否打印调用栈
+     */
+    static hookClsMethods(clsFilterFunc: (class_name: string) => boolean = null, methodFilterFunc: (method_name: string) => boolean = null, printStack: boolean = false) {
+        Java.perform(function () {
+            Java.enumerateLoadedClasses({
+                // class_name为加载的类名字符串
+                onMatch: function (class_name: string, handle: NativePointer) {
+                    if (!_Helper.checkClass(class_name)) {
+                        return;
+                    }
+                    if (clsFilterFunc && !clsFilterFunc(class_name)) {
+                        return;
+                    }
+                    try {
+                        let TargetClass: Wrapper = Java.use(class_name);
+                        let methodsList: Wrapper[] = TargetClass.class.getDeclaredMethods();
+                        Flog.d(_HookClazz.TAG, `Hook ${class_name} has ${methodsList.length} methods.`);
+                        methodsList.forEach((method) => {
+                            let method_name = method.getName()
+                            if (methodFilterFunc && !methodFilterFunc(method_name)) {
+                                return;
+                            }
+                            _HookClazz.hookMethodAllOverloads(class_name, method_name, printStack);
+                        })
+                    } catch (error) {
+                        Flog.d(_HookClazz.TAG, `Hook ${class_name} failed, ERROR: ${error}`)
+                    }
+
+                },
+                onComplete: function () {
+                    Flog.i(_HookClazz.TAG, "hookSomeClasses complete!!!")
+                }
+            })
+        })
+    }
 
     /**
      * 对某些类或包的所有方法进行hook
@@ -14,35 +53,15 @@ export class _HookClazz {
      * @param printStack 是否打印调用栈，默认不打印
      */
     static hookSomeClasses(whiteClsName: string, blackClsName: string = "", printStack: boolean = false) {
-        Java.perform(function () {
-            Java.enumerateLoadedClasses({
-                // class_name为加载的类名字符串
-                onMatch: function (class_name: string, handle: NativePointer) {
-                    // 可以通过包名限定需要处理的类名
-                    if (blackClsName.length != 0 && class_name.indexOf(blackClsName) >= 0) {
-                        return;
-                    }
-                    if (whiteClsName.length == 0 && !_Helper.checkClass(class_name)) {
-                        return;
-                    }
-                    if (class_name.indexOf(whiteClsName) >= 0) {
-                        try {
-                            let TargetClass: Wrapper = Java.use(class_name);
-                            let methodsList: Wrapper[] = TargetClass.class.getDeclaredMethods();
-                            Flog.d(_HookClazz.TAG, `Hook ${class_name} has ${methodsList.length} methods.`);
-                            methodsList.forEach((method) => {
-                                _HookClazz.hookMethodAllOverloads(class_name, method.getName(), printStack);
-                            })
-                        } catch (error) {
-                            Flog.d(_HookClazz.TAG, `Hook ${class_name} failed, ERROR: ${error}`)
-                        }
-                    }
-                },
-                onComplete: function () {
-                    Flog.i(_HookClazz.TAG, "hookSomeClasses complete!!!")
-                }
-            })
-        })
+        this.hookClsMethods((class_name) => {
+            if (blackClsName.length != 0 && class_name.indexOf(blackClsName) >= 0)
+                return false;
+            if (whiteClsName.length == 0 && !_Helper.checkClass(class_name))
+                return false;
+            return class_name.includes(whiteClsName);
+        }, (method_name) => {
+            return true;
+        }, printStack);
     }
 
     /**
