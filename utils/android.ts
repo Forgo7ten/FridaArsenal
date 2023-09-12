@@ -3,7 +3,7 @@ import {_FindClassloader} from "./android/find_classloader";
 import {_Helper} from "./android/helper";
 import {_HookClazz} from "./android/hook_clazz";
 import {_Anti} from "./android/anti";
-import {_WatchViews} from "./android/watch_views";
+import {_WatchEvent} from "./android/watch_event";
 import {_WatchCrypto} from "./android/watch_crypto";
 import {_CastHelper} from "./android/cast_helper";
 
@@ -24,7 +24,7 @@ export namespace android {
 
     }
 
-    export class WatchViews extends _WatchViews {
+    export class WatchEvent extends _WatchEvent {
     }
 
     export class CastHelper extends _CastHelper {

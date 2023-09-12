@@ -4,7 +4,7 @@ import Flog = common.Flog;
 import Wrapper = Java.Wrapper;
 import Method = Java.Method;
 
-export class _WatchViews {
+export class _WatchEvent {
 
     static __Toast_clazz: Wrapper
 
@@ -81,5 +81,17 @@ export class _WatchViews {
                 }
             });
         });
+    }
+
+    /**
+     * 监视Dialog的展示
+     */
+    static watchDialog(): void {
+        let Dialog = Java.use("android.app.Dialog");
+        Dialog["show"].implementation = function () {
+            Flog.i(`${this} Dialog.show() is called`);
+            _Helper.printStack(`${this} Dialog.show()`)
+            this["show"]();
+        }
     }
 }
