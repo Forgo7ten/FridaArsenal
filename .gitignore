@@ -2,3 +2,4 @@ node_modules/
 *.log
 /_agent.js
 /package-lock.json
+/.python-version

@@ -123,11 +123,13 @@ export class _HookClazz {
                         paramsStr = paramsStr.slice(0, -2)
                         if (printStack) {
                             _Helper.printStack(`${cls}.${methodName}-[${checkNum}]`)
+                        } else {
+                            Flog.i(_HookClazz.TAG, `Called  ${cls}.${methodName}-[${checkNum}]`);
                         }
                         // 主动调用原方法获得结果
                         let result = this[methodName].apply(this, arguments);
                         // 打印参数以及结果
-                        Flog.i(_HookClazz.TAG, `Called ${cls}.${methodName}-[${checkNum}](${paramsStr}) : ${result}`);
+                        Flog.i(_HookClazz.TAG, `Return  ${cls}.${methodName}-[${checkNum}](${paramsStr}) : ${result}`);
                         return result;
                     };
                 }
