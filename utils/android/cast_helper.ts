@@ -4,9 +4,24 @@ import Flog = common.Flog;
 
 export class _CastHelper {
     static readonly TAG = "CastHelper"
-    static String_clazz: Wrapper = Java.use("java.lang.String")
-    static Base64_clazz: Wrapper = Java.use("android.util.Base64");
-    static ByteString_clazz: Wrapper = Java.use("com.android.okhttp.okio.ByteString");
+    static String_clazz: Wrapper = null;
+    static Base64_clazz: Wrapper = null;
+    static ByteString_clazz: Wrapper = null;
+
+    static getStringClz(): Wrapper {
+        if (!this.String_clazz) this.String_clazz = Java.use("java.lang.String");
+        return this.String_clazz;
+    }
+
+    static getBase64Clz(): Wrapper {
+        if (!this.Base64_clazz) this.Base64_clazz = Java.use("android.util.Base64");
+        return this.Base64_clazz;
+    }
+
+    static getByteStringClz(): Wrapper {
+        if (!this.ByteString_clazz) this.ByteString_clazz = Java.use("com.android.okhttp.okio.ByteString");
+        return this.ByteString_clazz;
+    }
 
     /**
      * 接受java的byte[]，将其转换成string并返回
@@ -18,7 +33,7 @@ export class _CastHelper {
         let array;
         try {
             array = Java.array("byte", bytes);
-            return this.String_clazz.$new(array)
+            return this.getStringClz().$new(array)
         } catch (error) {
             Flog.e(this.TAG, `b2str(${bytes}) error: ${error}`)
             return null;
@@ -35,7 +50,7 @@ export class _CastHelper {
         let array;
         try {
             array = Java.array("byte", bytes)
-            return this.Base64_clazz["encodeToString"](array, 0);
+            return this.getBase64Clz()["encodeToString"](array, 0);
         } catch (error) {
             Flog.e(this.TAG, `b2b64str(${bytes}) error: ${error}`)
             return null;
@@ -52,7 +67,7 @@ export class _CastHelper {
         let array;
         try {
             array = Java.array("byte", bytes)
-            return this.ByteString_clazz.of(array).hex()
+            return this.getByteStringClz().of(array).hex()
         } catch (error) {
             Flog.e(this.TAG, `b2hex(${bytes}) error: ${error}`)
             return null;
