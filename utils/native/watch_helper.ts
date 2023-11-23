@@ -1,5 +1,6 @@
 import {common} from "../common";
 import {_NHelper} from "./helper";
+import {_NHookHelper} from "./hook_helper";
 import Flog = common.Flog;
 
 export class _NWatchHelper {
@@ -40,10 +41,31 @@ export class _NWatchHelper {
         }
     }
 
+
+    static watch_pthread_create(soname: string, callback: (soModule: Module) => void = (soModule) => {}) {
+        let pthread_create_addr = Module.findExportByName("libc.so", "pthread_create");
+        _NHookHelper.addHookBeforeSoInit(soname, (soModule) => {
+            if (pthread_create_addr) {
+                Interceptor.attach(pthread_create_addr, {
+                    onEnter: function (args) {
+                        Flog.i(`pthread_create offset: ${args[2].sub(soModule.base)}`)
+                    },
+                    onLeave: function (retval) {
+                        Flog.d("pthread_create returned: " + retval);
+                    }
+                });
+            } else {
+                Flog.e("Unable to find pthread_create function address.");
+            }
+            callback(soModule)
+        })
+    }
+
+
     /**
      * 来自 https://github.com/lasting-yang/frida_hook_libart
      */
-    static find_RegisterNatives() {
+    static watch_RegisterNatives() {
         function hook_RegisterNatives(addrRegisterNatives) {
             if (addrRegisterNatives != null) {
                 Interceptor.attach(addrRegisterNatives, {
