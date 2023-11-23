@@ -82,4 +82,24 @@ export class _NHelper {
         fclose(fp);
         Flog.i(`writeFile(${fileName}) done. return ${ret}`)
     }
+
+    static nop_arm64(addr) {
+        Memory.patchCode(ptr(addr), 4, code => {
+            const cw = new Arm64Writer(code, {pc: ptr(addr)});
+            cw.putNop();
+            cw.putNop();
+            cw.putNop();
+            cw.putNop();
+            cw.flush();
+        });
+    }
+
+    static nop_thumb(addr) {
+        Memory.patchCode(ptr(addr), 4, code => {
+            const cw = new ThumbWriter(code, {pc: ptr(addr)});
+            cw.putNop();
+            cw.putNop();
+            cw.flush();
+        });
+    }
 }
