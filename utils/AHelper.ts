@@ -2,7 +2,32 @@ import {Flog} from "./Flog";
 import Wrapper = Java.Wrapper;
 
 export namespace AHelper {
-    const _JAVA_HOOK_TAG = "JAVA_HOOK"
+    const _HOOK_TAG = "JAVA_HOOK"
+    const _HELPER_TAG = "Helper"
+
+    /**
+     * Java.cast java对象
+     * @param jobj java对象
+     * @param cls 认为的该对象可能的类名或类，可省略
+     * @returns 强转之后的Java Wrapper
+     */
+    export function getWrapper(jobj: Wrapper, cls: Wrapper | string = null): Wrapper {
+        if (jobj == null) {
+            Flog.e(_HELPER_TAG, `getWrapper() jobj == null`);
+            return null;
+        }
+        try {
+            cls = cls || jobj.$className;
+            if (typeof cls === "string") {
+                return Java.cast(jobj, Java.use(cls));
+            } else {
+                return Java.cast(jobj, cls);
+            }
+        } catch (error) {
+            Flog.e(_HELPER_TAG, `getWrapper(${jobj}) ERROR:${error}`)
+        }
+        return null;
+    }
 
     /**
      * 检查类名，过滤系统类和基本类型。返回false表示命中，需要过滤掉
@@ -67,7 +92,7 @@ export namespace AHelper {
                     try {
                         let TargetClass: Wrapper = Java.use(class_name);
                         let methodsList: Wrapper[] = TargetClass.class.getDeclaredMethods();
-                        Flog.d(_JAVA_HOOK_TAG, `Hook ${class_name} has ${methodsList.length} methods.`);
+                        Flog.d(_HOOK_TAG, `Hook ${class_name} has ${methodsList.length} methods.`);
                         methodsList.forEach((method) => {
                             let method_name = method.getName()
                             if (methodFilterFunc && !methodFilterFunc(method_name)) {
@@ -76,12 +101,12 @@ export namespace AHelper {
                             hookMethodAllOverloads(class_name, method_name, printStackFlag);
                         })
                     } catch (error) {
-                        Flog.d(_JAVA_HOOK_TAG, `Hook ${class_name} failed, ERROR: ${error}`)
+                        Flog.d(_HOOK_TAG, `Hook ${class_name} failed, ERROR: ${error}`)
                     }
 
                 },
                 onComplete: function () {
-                    Flog.i(_JAVA_HOOK_TAG, "hookSomeClasses complete!!!")
+                    Flog.i(_HOOK_TAG, "hookSomeClasses complete!!!")
                 }
             })
         })
@@ -120,12 +145,12 @@ export namespace AHelper {
                     TargetClass = cls;
                 }
                 let methodsList: Wrapper[] = TargetClass.class.getDeclaredMethods();
-                Flog.i(_JAVA_HOOK_TAG, `Hook ${cls} has ${methodsList.length} methods.`);
+                Flog.i(_HOOK_TAG, `Hook ${cls} has ${methodsList.length} methods.`);
                 methodsList.forEach((method) => {
                     hookMethodAllOverloads(cls, method.getName(), printStackFlag);
                 });
             } catch (error) {
-                Flog.e(_JAVA_HOOK_TAG, `hookSpecificClass failed: ${error}`)
+                Flog.e(_HOOK_TAG, `hookSpecificClass failed: ${error}`)
             }
         })
     }
@@ -165,19 +190,137 @@ export namespace AHelper {
                         if (printStackFlag) {
                             printStack(`${cls}.${methodName}-[${checkNum}]`)
                         } else {
-                            Flog.i(_JAVA_HOOK_TAG, `Called  ${cls}.${methodName}-[${checkNum}]`);
+                            Flog.i(_HOOK_TAG, `Called  ${cls}.${methodName}-[${checkNum}]`);
                         }
                         // 主动调用原方法获得结果
                         let result = this[methodName].apply(this, arguments);
                         // 打印参数以及结果
-                        Flog.i(_JAVA_HOOK_TAG, `Return  ${cls}.${methodName}-[${checkNum}](${paramsStr}) : ${result}`);
+                        Flog.i(_HOOK_TAG, `Return  ${cls}.${methodName}-[${checkNum}](${paramsStr}) : ${result}`);
                         return result;
                     };
                 }
             } catch (error) {
                 Flog.w(`${cls}.${methodName}()hook failed:${error}`);
             }
-            Flog.d(_JAVA_HOOK_TAG, `\t ${cls}.${methodName}[${overloadsLength}] has hooked.`);
+            Flog.d(_HOOK_TAG, `\t ${cls}.${methodName}[${overloadsLength}] has hooked.`);
         });
+    }
+
+    /**
+     * 获得[] Array数组的打印字符串
+     * @param array Java任意数组[] 例如byte[]、int[]
+     */
+    export function toStrFromArray(array: any): string {
+        // @ts-ignore
+        return Java.use("java.util.Arrays").toString(array);
+    }
+
+    /**
+     * 获得任意列表的打印字符串
+     * @param list 任意列表 ArrayList等
+     * @param separator 分隔符
+     */
+    export function toStrFromList(list: any, separator: string = "; "): string {
+        let len = list.size();
+        if (len < 1)
+            return "[empty]"
+        let logStr = "";
+        for (let i = 0; i < len - 1; i++) {
+            logStr += `[${i}]${list.get(i)}${separator}`;
+        }
+        logStr += `[${len - 1}]${list.get(len - 1)}`;
+        return logStr;
+    }
+
+    /**
+     * 获取Java Map转String的字符串
+     * @param map Map变量
+     * @param separator 分隔符
+     */
+    export function toStrFromMap(map: any, separator: string = "\n"): string {
+        map = getWrapper(map);
+        let logStr = "";
+        let key_iterator = map.keySet().iterator();
+        while (key_iterator.hasNext()) {
+            let key = key_iterator.next();
+            let value = map.get(key);
+            logStr += `${key}:${value}${separator}`
+        }
+        logStr = logStr.slice(0, (0 - separator.length));
+        return logStr
+    }
+
+    /**
+     * 获取Java Set转String的字符串
+     * @param set Set变量
+     * @param separator 分隔符
+     */
+    export function toStrFromSet(set: any, separator: string = "\n"): string {
+        set = getWrapper(set);
+        let logStr = "";
+        let iterator = set.iterator();
+        let i = 0;
+        while (iterator.hasNext()) {
+            logStr += `[${i}]${iterator.next()}${separator}`;
+            i++;
+        }
+        logStr = logStr.slice(0, (0 - separator.length));
+        return set
+    }
+
+    /**
+     * 调用Java实例的toString()方法
+     * @param instance Java实例
+     */
+    export function toString(instance: Wrapper) {
+        let logStr = `${instance}{  `
+        let fields = instance.class.getDeclaredFields();
+        fields.forEach(function (field) {
+            try {
+                field.setAccessible(true);
+                var fieldName = field.getName();
+                var fieldValue = field.get(instance);
+                logStr += `${fieldName}=${fieldValue}, `
+            } catch (e) {
+                Flog.e("Error accessing field: " + field.getName() + " - " + e);
+            }
+        });
+        logStr = logStr.slice(0, -2) + "  }"
+        return logStr
+    }
+
+    /**
+     * 打印[] Array数组
+     * @param array 任意数组
+     */
+    export function printArray(array: any): void {
+        Flog.i("printArray", toStrFromArray(array));
+    }
+
+    /**
+     * 打印List列表
+     * @param list 任意列表
+     * @param separator 分隔符
+     */
+    export function printList(list: any, separator: string = "; "): void {
+        Flog.i("printList", toStrFromList(list, separator));
+    }
+
+    /**
+     * 打印JavaMap
+     * @param map Map变量
+     * @param separator 分隔符
+     */
+    export function printMap(map: any, separator: string = "\n"): void {
+        Flog.i("printMap", toStrFromMap(map, separator));
+    }
+
+    /**
+     * 打印Java Set数据
+     * @param set Set变量
+     * @param separator 分隔符
+     */
+    export function printSet(set: any, separator: string = "\n"): void {
+        Flog.i("printSet", toStrFromSet(set, separator));
     }
 }
