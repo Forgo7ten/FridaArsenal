@@ -29,6 +29,49 @@ export namespace AHelper {
         return null;
     }
 
+    let _ClassClz: Wrapper;
+    let _ObjectClz: Wrapper;
+
+    /**
+     * 通过Java对象Wrapper，拿到对象的全类名
+     * @param {Wrapper} obj 未知对象
+     * @returns 对象的全类名
+     */
+    export function getClsNameFromObj(obj: Wrapper): string {
+        _ClassClz = _ClassClz || Java.use("java.lang.Class");
+        _ObjectClz = _ObjectClz || Java.use("java.lang.Object");
+        return _ClassClz.getName.call(_ObjectClz.getClass.call(obj));
+    }
+
+    /**
+     * 获得App Context
+     */
+    export function getAppCtx() {
+        let context = null;
+        Java.perform(function () {
+            let currentApplication = Java.use("android.app.ActivityThread").currentApplication();
+            context = Java.retain(currentApplication.getApplicationContext());
+        })
+        return context;
+    }
+
+    /**
+     * 通过反射来获取java对象 成员的值
+     * @param {Wrapper} object java对象
+     * @param {string} fieldName 字段名
+     * @returns 对象成员的值或null
+     */
+    export function getFieldValue(object: Wrapper, fieldName: string): Wrapper {
+        let field = object.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        let fieldValue = field.get(object);
+        if (null === fieldValue) {
+            Flog.w(_HELPER_TAG, `getFieldValue(${object.$className}, ${fieldName}) = NULL`);
+            return null;
+        }
+        return getWrapper(fieldValue);
+    }
+
     /**
      * 检查类名，过滤系统类和基本类型。返回false表示命中，需要过滤掉
      * @param name 类名
