@@ -1,0 +1,12 @@
+[submodule "scripts/r0capture"]
+	path = scripts/r0capture
+	url = https://gitee.com/forgo7ten-mirrors/r0capture
+[submodule "scripts/OkHttpLogger-Frida"]
+	path = scripts/OkHttpLogger-Frida
+	url = https://gitee.com/forgo7ten-mirrors/OkHttpLogger-Frida
+[submodule "scripts/frida_hook_libart"]
+	path = scripts/frida_hook_libart
+	url = https://gitee.com/forgo7ten-mirrors/frida_hook_libart
+[submodule "scripts/frida_dump"]
+	path = scripts/frida_dump
+	url = https://gitee.com/forgo7ten-mirrors/frida_dump

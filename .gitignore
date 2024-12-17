@@ -1,0 +1,9 @@
+# nodejs modules
+node_modules/
+/package-lock.json
+# npm run watch cache
+/_agent.js
+# pyenv version
+/.python-version
+# temp log(if exists)
+*.log
