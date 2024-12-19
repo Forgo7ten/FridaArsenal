@@ -2,6 +2,8 @@
 
 Frida武器库，集成常用hook脚本与代码模板，自用。
 
+API 文档见：[FridaArsenal API Document](https://forgo7ten.github.io/FridaArsenal/).
+
 -   下载
 
     ```bash

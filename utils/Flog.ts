@@ -1,14 +1,22 @@
 import Wrapper = Java.Wrapper;
 
+/**
+ * @class 日志工具类
+ */
 export class Flog {
+    /** @readonly DEBUG等级日志 */
     static LOG_LEVEL_DEBUG: number = 0;
+    /** @readonly INFO等级日志 */
     static LOG_LEVEL_INFO: number = 1;
+    /** @readonly WARN等级日志 */
     static LOG_LEVEL_WARN: number = 2;
+    /** @readonly ERROR等级日志 */
     static LOG_LEVEL_ERROR: number = 3;
+    /** @private */
     static level: number = this.LOG_LEVEL_DEBUG;
 
     /**
-     * 设置日志等级
+     * 设置日志等级，低于日志等级的日志不会打印
      * @param level 日志等级
      */
     static setLogLevel(level: number) {
@@ -39,8 +47,17 @@ export class Flog {
         }
     }
 
+    /**
+     * debug等级日志
+     * @param msg 要打印的日志
+     */
     static d(msg: string): void;
 
+    /**
+     * debug等级日志
+     * @param tag 要打印的日志
+     * @param msg 日志所属TAG
+     */
     static d(tag: string, msg: string): void;
 
     static d(tag_or_msg: any, msg?: string): void {
@@ -53,22 +70,39 @@ export class Flog {
         }
     }
 
+    /**
+     * info等级日志
+     * @param msg 要打印的日志
+     */
     static i(msg: string): void;
 
+    /**
+     * info等级日志
+     * @param tag 日志所属TAG
+     * @param msg 要打印的日志
+     */
     static i(tag: string, msg: string): void;
 
     static i(tag_or_msg: any, msg?: string): void {
         if (this.LOG_LEVEL_INFO >= this.level) {
             if (msg) {
-                Flog._log(console.log, 'INFO', tag_or_msg, msg);
+                Flog._log(console.info, 'INFO', tag_or_msg, msg);
             } else {
-                Flog._log(console.log, 'INFO', Flog.TAG, tag_or_msg);
+                Flog._log(console.info, 'INFO', Flog.TAG, tag_or_msg);
             }
         }
     }
 
+    /**
+     * warn等级日志
+     * @param msg 要打印的日志
+     */
     static w(msg: string): void;
-
+    /**
+     * warn等级日志
+     * @param tag 日志所属TAG
+     * @param msg 要打印的日志
+     */
     static w(tag: string, msg: string): void;
 
     static w(tag_or_msg: any, msg?: string): void {
@@ -81,8 +115,16 @@ export class Flog {
         }
     }
 
+    /**
+     * error等级日志
+     * @param msg 要打印的日志
+     */
     static e(msg: string): void;
-
+    /**
+     * error等级日志
+     * @param tag 日志所属TAG
+     * @param msg 要打印的日志
+     */
     static e(tag: string, msg: string): void;
 
     static e(tag_or_msg: any, msg?: string): void {
@@ -114,8 +156,16 @@ export class Flog {
 
     }
 
+    /**
+     * send消息到python
+     * @param content 要打印的日志
+     */
     static send(content: string): void;
-
+    /**
+     * send消息到python
+     * @param tag 日志所属TAG
+     * @param content 要打印的日志
+     */
     static send(tag: string, content: string): void;
 
     static send(tag_or_msg: any, content?: string): void {

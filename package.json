@@ -1,10 +1,11 @@
 {
-  "name": "@forgo7ten/frida_arsenal",
+  "name": "@forgo7ten/FridaArsenal",
   "version": "1.0.0",
   "description": "FridaArsenal",
   "private": false,
   "main": "index.ts",
   "scripts": {
+    "docs": "npx typedoc",
     "prepare": "npm run build",
     "build": "frida-compile index.ts -o _agent.js",
     "watch": "frida-compile index.ts -o _agent.js -w"
@@ -13,9 +14,10 @@
     "@types/frida-gum": "^18.3.1",
     "@types/node": "^14.18.37",
     "frida-compile": "^10.2.5",
-    "typecript": "^0.0.1-security"
+    "typecript": "^0.0.1-security",
+    "typedoc": "^0.27.5"
   },
-  "bundleDependencies": false,
+  "bundleDependencies": [],
   "dependencies": {
     "@types/frida-gum": "^18.3.1",
     "@types/node": "^14.18.37",

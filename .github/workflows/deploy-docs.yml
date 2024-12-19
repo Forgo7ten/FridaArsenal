@@ -1,0 +1,41 @@
+name: Deploy Docs to Docs Branch
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build-and-deploy-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. 检出代码
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # 2. 安装依赖
+    - name: Install Dependencies
+      run: npm install
+
+    # 3. 生成 API 文档
+    - name: Build API Documentation
+      run: npm run docs
+
+    # 4. 创建git commit
+    - name: Commit files
+      run: |
+        cd docs
+        git init
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add .
+        git commit -m "Update API documentation"
+
+    # 5. 部署到 docs 分支
+    - name: Deploy Docs to Docs Branch
+      uses: ad-m/github-push-action@master
+      with:
+        branch: docs
+        directory: docs
+        force: true
