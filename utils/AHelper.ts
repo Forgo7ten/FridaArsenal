@@ -1,9 +1,13 @@
 import {Flog} from "./Flog";
 import Wrapper = Java.Wrapper;
 
+/**
+ * Android 帮助类
+ */
 export namespace AHelper {
     const _HOOK_TAG = "JAVA_HOOK"
     const _HELPER_TAG = "Helper"
+    const _SEARCH_TAG = "Search"
 
     /**
      * Java.cast java对象
@@ -250,6 +254,48 @@ export namespace AHelper {
     }
 
     /**
+     * 保存Gson对象Wrapper
+     * @private
+     */
+    let _gson_obj: Wrapper | null = null;
+
+    /**
+     * 将对象转成json字符串
+     * @param {object} obj 要转成json的对象
+     * @returns json字符串
+     */
+    export function toGson(obj: Wrapper): string {
+        try {
+            if (_gson_obj == null) {
+                Java.openClassFile("/data/local/tmp/fgson.dex").load();
+                _gson_obj = Java.use('com.forgo7ten.gson.Gson');
+            }
+            return _gson_obj.$new().toJson(obj);
+        } catch (error) {
+            // md5sum fgson.dex: a7c58b60a7339e6a1207d5207c847bd5  fgson.dex
+            Flog.e("toGson", `Please install the jar into the device first.\n  ERROR: ${error}`)
+        }
+    }
+
+    /**
+     * 字节数组转hex字符串 FixMe: writeS8 未测试
+     * @param {*} array Wrapper数组
+     * @param {*} off 偏移
+     * @param {*} len 长度
+     */
+    export function toHexdump(array: Wrapper[], off: number, len: number) {
+        off = off || 0;
+        len = len || 0;
+        len = len == 0 ? array.length : len;
+        let ptr = Memory.alloc(len);
+        for (let i = 0; i < len; ++i) {
+            // @ts-ignore
+            Memory.writeS8(ptr.add(i), array[i]);
+        }
+        return hexdump(ptr, {offset: off, length: len, header: false, ansi: false});
+    }
+
+    /**
      * 获得[] Array数组的打印字符串
      * @param array Java任意数组[] 例如byte[]、int[]
      */
@@ -333,6 +379,16 @@ export namespace AHelper {
     }
 
     /**
+     * 打印 字节数组转hex字符串
+     * @param {*} array Wrapper数组
+     * @param {*} off 偏移
+     * @param {*} len 长度
+     */
+    export function printHexdump(array: Wrapper[], off: number, len: number) {
+        Flog.i(toHexdump(array, off, len))
+    }
+
+    /**
      * 打印[] Array数组
      * @param array 任意数组
      */
@@ -366,4 +422,237 @@ export namespace AHelper {
     export function printSet(set: any, separator: string = "\n"): void {
         Flog.i("printSet", toStrFromSet(set, separator));
     }
+
+
+    /**
+     * 寻找指定类的所有接口并打印
+     * @param whiteClsName 要寻找接口的类名称
+     * @param blackClsName 黑名单
+     */
+    export function searchAllInterfaces(whiteClsName: string, blackClsName: string = "") {
+        Java.perform(function () {
+            Java.enumerateLoadedClasses({
+                onMatch: function (class_name: string) {
+                    // 对搜索范围进行限定
+                    if (blackClsName.length != 0 && class_name.indexOf(blackClsName) >= 0) {
+                        return;
+                    }
+                    // 如果白名单为空（搜索全局），过滤一些系统类
+                    if (whiteClsName.length == 0 && !filterSysClass(class_name)) {
+                        return;
+                    }
+                    if (class_name.indexOf(whiteClsName) >= 0) {
+                        try {
+                            let clazz: Wrapper = Java.use(class_name);
+                            let interfaces: Wrapper[] = clazz.class.getInterfaces();
+                            if (interfaces.length > 0) {
+                                Flog.i(_SEARCH_TAG, `${class_name} [${interfaces.length}] :`);
+                                interfaces.forEach((interface_name: Wrapper) => {
+                                    Flog.i(_SEARCH_TAG, `\t ${interface_name.toString()}`)
+                                })
+                            }
+                        } catch (error) {
+                        }
+                    }
+                },
+                onComplete: function () {
+                    Flog.d(_SEARCH_TAG, `searchAllInterfaces end.`);
+                }
+            })
+        })
+    }
+
+    /**
+     * 寻找指定类的所有父类并打印
+     * @param whiteClsName 要寻找父类的类名称
+     * @param blackClsName 黑名单
+     */
+    export function searchAllSuperclasses(whiteClsName: string, blackClsName: string = "") {
+        Java.perform(function () {
+            Java.enumerateLoadedClasses({
+                onMatch: function (class_name: string) {
+                    // 对搜索范围进行限定
+                    if (blackClsName.length != 0 && class_name.indexOf(blackClsName) >= 0) {
+                        return;
+                    }
+                    // 如果白名单为空（搜索全局），过滤一些系统类
+                    if (whiteClsName.length == 0 && !filterSysClass(class_name)) {
+                        return;
+                    }
+                    if (class_name.indexOf(whiteClsName) >= 0) {
+                        try {
+                            let hook_cls: Wrapper = Java.use(class_name);
+                            let superClass: Wrapper = hook_cls.class.getSuperclass();
+                            Flog.i(_SEARCH_TAG, `${class_name} :`)
+                            while (superClass != null) {
+                                Flog.i(_SEARCH_TAG, `\t ${superClass.toString()}`);
+                                superClass = superClass.getSuperclass();
+                            }
+                        } catch (error) {
+                        }
+                    }
+                },
+                onComplete: function () {
+                    Flog.d(_SEARCH_TAG, `searchAllSuperclasses end.`);
+                }
+            })
+        })
+    }
+
+
+    /**
+     * 通过提供的接口名称，在限定范围内查找实现类
+     * @param interfaceName 要寻找实现类的接口名称
+     * @param whiteClsName 白名单筛选
+     * @param blackClsName 黑名单
+     */
+    export function searchImpByInterface(interfaceName: string, whiteClsName: string = "", blackClsName: string = "") {
+        Java.perform(function () {
+            Java.enumerateLoadedClasses({
+                onMatch: function (class_name: string) {
+                    // 对搜索范围进行限定
+                    if (blackClsName.length != 0 && class_name.indexOf(blackClsName) >= 0) {
+                        return;
+                    }
+                    // 如果白名单为空（搜索全局），过滤一些系统类
+                    if (whiteClsName.length == 0 && !filterSysClass(class_name)) {
+                        return;
+                    }
+                    if (class_name.indexOf(whiteClsName) >= 0) {
+                        try {
+                            let clazz: Wrapper = Java.use(class_name);
+                            let interfaces: Wrapper[] = clazz.class.getInterfaces();
+                            if (interfaces.length > 0) {
+                                interfaces.forEach((interface_name: Wrapper) => {
+                                    if (interface_name.toString().indexOf(interfaceName) >= 0) {
+                                        Flog.i(_SEARCH_TAG, `${class_name} :> ${interface_name.toString()}`);
+                                    }
+                                })
+                            }
+                        } catch (error) {
+                        }
+                    }
+                },
+                onComplete: function () {
+                    Flog.d(_SEARCH_TAG, "searchImpByInterface end");
+                }
+            })
+        })
+    }
+
+    /**
+     * 通过提供的父类名称，在限定范围内查找子类
+     * @param superClassName 要寻找子类的父类名称
+     * @param whiteClsName 白名单筛选
+     * @param blackClsName 黑名单
+     */
+    export function searchChildBySuper(superClassName: string, whiteClsName: string = "", blackClsName: string = "") {
+        Java.perform(function () {
+            Java.enumerateLoadedClasses({
+                onMatch: function (class_name: string) {
+                    // 对搜索范围进行限定
+                    if (blackClsName.length != 0 && class_name.indexOf(blackClsName) >= 0) {
+                        return;
+                    }
+                    // 如果白名单为空（搜索全局），过滤一些系统类
+                    if (whiteClsName.length == 0 && !filterSysClass(class_name)) {
+                        return;
+                    }
+                    if (class_name.indexOf(whiteClsName) >= 0) {
+                        try {
+                            let hook_cls: Wrapper = Java.use(class_name);
+                            let superClass: Wrapper = hook_cls.class.getSuperclass();
+                            while (superClass != null) {
+                                if (superClass.toString().indexOf(superClassName) >= 0) {
+                                    Flog.i(_SEARCH_TAG, `Found: ${class_name} -> ${superClass}`);
+                                    break;
+                                }
+                                superClass = superClass.getSuperclass();
+                            }
+                        } catch (error) {
+                        }
+                    }
+                },
+                onComplete: function () {
+                    Flog.d(_SEARCH_TAG, `searchChildBySuper end.`);
+                },
+            });
+        });
+    }
+
+
+    /**
+     * 通过hook的方式来获取classloader，并设置
+     */
+    export function searchClassLoaderByHook(): void {
+        let ActivityThread_clazz = Java.use("android.app.ActivityThread");
+        ActivityThread_clazz["performLaunchActivity"].implementation = function () {
+            let ret: Wrapper = this["performLaunchActivity"].apply(this, arguments);
+            // @ts-ignore
+            Java.classFactory.loader = this.mInitialApplication.value.getClassLoader();
+            return ret;
+        }
+    }
+
+    /**
+     * 同步的方式来寻找classloader
+     * @param {String} className 尝试加载的类
+     */
+    export function searchClassLoaderSync(className: string): Wrapper | void {
+        if (className == undefined) {
+            Flog.e(_SEARCH_TAG, "className == undefined, return.");
+            return;
+        }
+        let clsLoaders: Wrapper[] = Java.enumerateClassLoadersSync();
+        for (let loader of clsLoaders) {
+            try {
+                // 如果找到的类加载器 能加载的类有[className]
+                if (loader.findClass(className)) {
+                    Flog.i(_SEARCH_TAG, "Successfully found loader.");
+                    // @ts-ignore
+                    Java.classFactory.loader = loader;
+                    return loader;
+                }
+            } catch (error) {
+            }
+        }
+        Flog.d(_SEARCH_TAG, "searchClassLoaderSync End.");
+    }
+
+
+    /**
+     * 异步的方式来寻找classloader，之后调用回调函数
+     * @param className 尝试加载的类
+     * @param onCallback 寻找到ClassLoader之后要回调的函数，默认为空
+     */
+    export function searchClassLoader(className: string, onCallback: () => void = () => {
+    }): void {
+        let found: boolean = false;
+        if (className == undefined) {
+            Flog.w(_SEARCH_TAG, "className == undefined, return.");
+            return;
+        }
+        // 枚举内存中的 类加载器
+        Java.enumerateClassLoaders({
+            onMatch: function (loader: Wrapper) {
+                try {
+                    if (found) return;
+                    // Flog.d(_SEARCH_TAG, `Found loader: ${loader}`)
+                    // 如果找到的类加载器 能加载的类有[class_name]//
+                    if (loader.findClass(className)) {
+                        // @ts-ignore
+                        Java.classFactory.loader = loader;
+                        onCallback();
+                        Flog.i(_SEARCH_TAG, "Successfully found loader.");
+                        found = true;
+                    }
+                } catch (error) {
+                }
+            },
+            onComplete: function () {
+                Flog.d(_SEARCH_TAG, "searchClassLoader End.");
+            },
+        });
+    }
+
 }

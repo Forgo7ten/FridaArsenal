@@ -1,0 +1,3 @@
+jnitrace
+frida-dexdump
+hexdump
