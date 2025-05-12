@@ -8,6 +8,8 @@ export namespace AHelper {
     const _HOOK_TAG = "JAVA_HOOK"
     const _HELPER_TAG = "Helper"
     const _SEARCH_TAG = "Search"
+    const _CAST_TAG = "Cast"
+    const _CRYPTO_TAG = "Crypto";
 
     /**
      * Java.cast java对象
@@ -653,6 +655,516 @@ export namespace AHelper {
                 Flog.d(_SEARCH_TAG, "searchClassLoader End.");
             },
         });
+    }
+
+
+    /**
+     * FixMe: 未测试
+     * dump客户端证书，并保存为p12的格式，证书密码为Forgo7ten
+     */
+    export function hook_keystore() {
+        const TAG = "hook_keystore"
+        let password = 'Forgo7ten';
+
+        function getNowTime() {
+            function dateFormat(fmt: string, date: Date) {
+                let ret;
+                const opt: { [key: string]: string } = {
+                    "Y+": date.getFullYear().toString(),
+                    "m+": (date.getMonth() + 1).toString(),
+                    "d+": date.getDate().toString(),
+                    "H+": date.getHours().toString(),
+                    "M+": date.getMinutes().toString(),
+                    "S+": date.getSeconds().toString()
+                };
+                for (let k in opt) {
+                    ret = new RegExp("(" + k + ")").exec(fmt);
+                    if (ret) {
+                        fmt = fmt.replace(ret[1], (ret[1].length === 1) ? (opt[k]) : (opt[k].padStart(ret[1].length, "0")))
+                    }
+
+                }
+
+                return fmt;
+            }
+
+            function random(min: number, max: number) {
+                return Math.floor(Math.random() * (max - min)) + min;
+            }
+
+            return dateFormat("YYYY_mm_dd_HH_MM_SS", new Date()) + "_" + random(1, 100);
+        }
+
+        Java.perform(function () {
+            function storeP12(privateKey: Wrapper, certificate: Wrapper, saveP12Path: string, p12Password: string) {
+                let X509Certificate = Java.use("java.security.cert.X509Certificate")
+                let p7X509 = Java.cast(certificate, X509Certificate);
+                let chain = Java.array("java.security.cert.X509Certificate", [p7X509])
+                let ks = Java.use("java.security.KeyStore").getInstance("PKCS12", "BC");
+                ks.load(null, null);
+                ks.setKeyEntry("client", privateKey, Java.use('java.lang.String').$new(p12Password).toCharArray(), chain);
+                try {
+                    let out = Java.use("java.io.FileOutputStream").$new(saveP12Path);
+                    ks.store(out, Java.use('java.lang.String').$new(p12Password).toCharArray())
+                } catch (error) {
+                    Flog.e(TAG, `storeP12 error:${error}`)
+                }
+            }
+
+            Java.use("java.security.KeyStore$PrivateKeyEntry").getPrivateKey.implementation = function () {
+                let packageName = Java.use("android.app.ActivityThread").currentApplication().getApplicationContext().getPackageName();
+                let savePath = '/sdcard/Download/' + packageName;
+
+                let result = this.getPrivateKey();
+                let fileName = savePath + getNowTime() + '.p12'
+                storeP12(this.getPrivateKey(), this.getCertificate(), fileName, password);
+                Flog.i(TAG, `dump ClinetCertificate => ${fileName} pwd: ${password}`);
+                return result;
+            }
+            Java.use("java.security.KeyStore$PrivateKeyEntry").getCertificateChain.implementation = function () {
+                let packageName = Java.use("android.app.ActivityThread").currentApplication().getApplicationContext().getPackageName();
+                let savePath = '/sdcard/Download/' + packageName;
+                let result = this.getCertificateChain()
+                let fileName = savePath + getNowTime() + '.p12'
+                storeP12(this.getPrivateKey(), this.getCertificate(), fileName, password);
+                Flog.i(TAG, `dump ClinetCertificate => ${fileName} pwd: ${password}`);
+
+                return result;
+            }
+        });
+    }
+
+
+    /**
+     * 接受java的byte[]，将其转换成string并返回
+     * ！！！禁止byte[]之外的类型
+     * @param bytes java的byte[]数组
+     * @return string 字节数组变为的字符串
+     */
+    export function cast_b2str(bytes: any): string {
+        let array;
+        try {
+            array = Java.array("byte", bytes);
+            return Java.use("java.lang.String").$new(array)
+        } catch (error) {
+            Flog.e(_CAST_TAG, `b2str(${bytes}) error: ${error}`)
+            return null;
+        }
+    }
+
+    /**
+     * 接受java的byte[]，将其编码成base64字符串并返回
+     * ！！！禁止byte[]之外的类型
+     * @param bytes java的byte[]数组
+     * @return string base64字符串
+     */
+    export function cast_b2b64str(bytes: any): string {
+        let array;
+        try {
+            array = Java.array("byte", bytes)
+            return Java.use("android.util.Base64")["encodeToString"](array, 0);
+        } catch (error) {
+            Flog.e(_CAST_TAG, `b2b64str(${bytes}) error: ${error}`)
+            return null;
+        }
+    }
+
+    /**
+     * 接受java的byte[]，将其编码成hex字符串并返回
+     * ！！！禁止byte[]之外的类型
+     * @param bytes java的byte[]数组
+     * @return string hex字符串
+     */
+    export function cast_b2hex(bytes: any): string {
+        let array;
+        try {
+            array = Java.array("byte", bytes)
+            return Java.use("com.android.okhttp.okio.ByteString").of(array).hex()
+        } catch (error) {
+            Flog.e(_CAST_TAG, `b2hex(${bytes}) error: ${error}`)
+            return null;
+        }
+    }
+
+    /**
+     * 监听 Toast.show()方法
+     */
+    export function watchToast(): void {
+        Java.perform(function () {
+            let Toast = Java.use("android.widget.Toast");
+            Toast.show.implementation = function () {
+                let text = this.mText.value ? this.mText.value.toString() : "";
+                printStack("SHOW Toast: " + text);
+                return this.show();
+            };
+        });
+    }
+
+    /**
+     * 监听弹窗
+     */
+    export function watchDialog(): void {
+        let Dialog = Java.use("android.app.Dialog");
+        Dialog["show"].implementation = function () {
+            Flog.i(`${this} Dialog.show() is called`);
+            printStack(`${this} Dialog.show()`)
+            this["show"]();
+        }
+    }
+
+    export function watchOnclick(): void {
+        const TAG = "watchOnclick"
+
+        function watch(obj: Wrapper, methodName: string) {
+            let listener_name = getClsNameFromObj(obj);
+            let target: Wrapper = Java.use(listener_name);
+            if (!target || !(methodName in target)) {
+                return;
+            }
+            target[methodName].overloads.forEach(function (overload: Java.Method) {
+                overload.implementation = function () {
+                    Flog.i(TAG, `${methodName}: ${getClsNameFromObj(this)}`);
+                    return this[methodName].apply(this, arguments);
+                };
+            });
+        }
+
+        Java.perform(function () {
+            // 以spawn的模式自启动的hook
+            // HOOK View.onClick方法，监控
+            Java.use("android.view.View").setOnClickListener.implementation = function (view: Wrapper) {
+                if (view != null) {
+                    watch(view, "onClick");
+                }
+                return this.setOnClickListener(view);
+            };
+
+            // attach模式去附加进程的hook，就是更慢的hook，需要看hook的时机，hook一些已有的东西
+            Java.choose("android.view.View$ListenerInfo", {
+                onMatch: function (instance) {
+                    instance = instance.mOnClickListener.value;
+                    if (instance) {
+                        Flog.d(TAG, `mOnClickListener name is:${getClsNameFromObj(instance)}`);
+                        watch(instance, "onClick");
+                    }
+                },
+                onComplete: function () {
+                }
+            });
+        });
+    }
+
+    /**
+     * 监控MessageDigest类：md5,sha1,sha256...
+     */
+    export function watch_digest(printStackFlag = true): void {
+        const MessageDigest_clazz = Java.use("java.security.MessageDigest");
+
+        function hook_MessageDigest_update(printStackFlag) {
+            const MessageDigest_update: Java.MethodDispatcher = MessageDigest_clazz["update"]
+            const updateImpl: Java.MethodImplementation = function () {
+                let input: Wrapper;
+                let ret = this["update"].apply(this, arguments)
+                Flog.line(_CRYPTO_TAG + "-MessageDigest", `${this}_${this.hashCode()}.update():${this.algorithm.value}`)
+                if (arguments[0].$className != undefined) {
+                    input = arguments[0].array();
+                } else {
+                    input = arguments[0]
+                }
+                let input_str: string
+                if (typeof input === "number") {
+                    input_str = `[byte 0x${(<number>input).toString(16)}]`
+                } else {
+                    input_str = cast_b2str(input)
+                }
+                if (input) Flog.i(_CRYPTO_TAG + "-MessageDigest", `input=${input}; input_str=${input_str}; input_b64=${cast_b2b64str(input)}`)
+                if (printStackFlag) printStack("MessageDigest_update")
+                return ret;
+            }
+            MessageDigest_update.overload('byte').implementation = updateImpl
+            MessageDigest_update.overload('java.nio.ByteBuffer').implementation = updateImpl
+            MessageDigest_update.overload('[B').implementation = updateImpl
+            MessageDigest_update.overload('[B', 'int', 'int').implementation = updateImpl
+
+        }
+
+        function hook_MessageDigest_digest(printStackFlag) {
+            const MessageDigest_digest: Java.MethodDispatcher = MessageDigest_clazz["digest"]
+            const digestImpl: Java.MethodImplementation = function () {
+                let output: Wrapper | null;
+                let ret = this["digest"].apply(this, arguments)
+                Flog.line(_CRYPTO_TAG + "-MessageDigest", `${this}_${this.hashCode()}.digest():${this.algorithm.value}`)
+                switch (arguments.length) {
+                    case 0:
+                        output = ret;
+                        break;
+                    case 3:
+                        output = arguments[0];
+                        break;
+                    default:
+                        output = null;
+                        break;
+                }
+                if (output) Flog.i(_CRYPTO_TAG + "-MessageDigest", `output=${output}; output_hex=${cast_b2hex(output)}`)
+                if (printStackFlag) printStack("MessageDigest_digest")
+                return ret;
+            }
+
+            MessageDigest_digest.overload().implementation = digestImpl
+            // 会调用第一个重载
+            // MessageDigest_digest.overload('[B').implementation = digestImpl
+            MessageDigest_digest.overload('[B', 'int', 'int').implementation = digestImpl
+
+        }
+
+        Java.perform(() => {
+            hook_MessageDigest_update(printStackFlag);
+            hook_MessageDigest_digest(printStackFlag);
+        })
+    }
+
+    /**
+     * 监控Cipher类：AES,DES,RSA...
+     */
+    export function watch_cipher(need_printStack = false): void {
+        const Cipher_clazz = Java.use("javax.crypto.Cipher");
+
+        function hook_Cipher_init(printStackFlag) {
+            const Cipher_chooseProvider: Java.MethodDispatcher = Cipher_clazz["chooseProvider"]
+            const IvParameterSpec_clazz = Java.use("javax.crypto.spec.IvParameterSpec")
+            /**
+             * Cipher.init() 方法的深层次函数，所有的init最终都会执行该方法
+             */
+            Cipher_chooseProvider.implementation = function (initType: Wrapper, opmode: number, key: Wrapper, paramSpec: Wrapper, params: Wrapper, random: Wrapper) {
+                let opmode_str: string = this["getOpmodeString"](opmode);
+                Flog.line(_CRYPTO_TAG + "-Cipher", `${this}.init(): ${this.transformation.value} -> ${opmode_str}`)
+                if (null != key) {
+                    let key_algorithm = key["getAlgorithm"]();
+                    let key_format = key["getFormat"]();
+                    let key_encoded = key["getEncoded"]();
+                    Flog.i(_CRYPTO_TAG + "-Cipher", `Key info: algorithm=${key_algorithm}; format=${key_format}; encoded=${key_encoded}; key_str=${cast_b2str(key_encoded)}; key_b64=${cast_b2b64str(key_encoded)}`)
+                }
+                if (paramSpec != null) {
+                    try {
+                        paramSpec = Java.cast(paramSpec, IvParameterSpec_clazz)
+                        let iv = paramSpec.getIV()
+                        Flog.i(_CRYPTO_TAG + "-Cipher", `IV=${iv}; IV_str=${cast_b2str(iv)}`)
+                    } catch (error) {
+                        Flog.i(_CRYPTO_TAG + "-Cipher", `paramSpec=${paramSpec.toString()}`)
+                    }
+                }
+                let ret = this["chooseProvider"].apply(this, arguments)
+                // console.warn(_WatchCipher.TAG, `${this} -> ${this.spi.value}`)
+                if (printStackFlag) printStack("Cipher_init")
+                return ret;
+            };
+        }
+
+        function hook_Cipher_update(printStackFlag) {
+            const Cipher_update: Java.MethodDispatcher = Cipher_clazz["update"]
+            const updateImpl: Java.MethodImplementation = function () {
+                let input: Wrapper | null;
+                let output: Wrapper | null;
+                let ret = this["update"].apply(this, arguments)
+                Flog.line(_CRYPTO_TAG + "-Cipher", `${this}.update():${this.transformation.value}`)
+                if (arguments.length == 2) {
+                    // .overload('java.nio.ByteBuffer', 'java.nio.ByteBuffer')
+                    input = arguments[0].array();
+                    output = arguments[1].array();
+                } else if (arguments.length <= 3) {
+                    // .overload('[B')
+                    // .overload('[B', 'int', 'int').
+                    input = arguments[0];
+                    output = ret;
+                } else {
+                    // arguments.length > 3
+                    // .overload('[B', 'int', 'int', '[B')
+                    // .overload('[B', 'int', 'int', '[B', 'int')
+                    input = arguments[0];
+                    output = arguments[3];
+                }
+                if (input) Flog.i(_CRYPTO_TAG + "-Cipher", `input=${input}; input_str=${cast_b2str(input)}; input_b64=${cast_b2b64str(input)}`)
+                if (output) Flog.i(_CRYPTO_TAG + "-Cipher", `output=${output}; output_hex=${cast_b2hex(output)}; output_b64=${cast_b2b64str(output)}`)
+                if (printStackFlag) printStack("Cipher_update")
+                return ret;
+            }
+
+            Cipher_update.overload('[B').implementation = updateImpl;
+            Cipher_update.overload('[B', 'int', 'int').implementation = updateImpl;
+            Cipher_update.overload('[B', 'int', 'int', '[B').implementation = updateImpl;
+            Cipher_update.overload('[B', 'int', 'int', '[B', 'int').implementation = updateImpl;
+            Cipher_update.overload('java.nio.ByteBuffer', 'java.nio.ByteBuffer').implementation = updateImpl;
+        }
+
+        function hook_Cipher_doFinal(printStackFlag) {
+            const Cipher_doFinal: Java.MethodDispatcher = Cipher_clazz["doFinal"];
+
+            /**
+             * FixMe: 没有经过详细的测试
+             */
+            const doFinalImpl: Java.MethodImplementation = function () {
+                let input: Wrapper | null;
+                let output: Wrapper | null;
+                let ret = this["doFinal"].apply(this, arguments)
+                Flog.line(_CRYPTO_TAG + "-Cipher", `${this}.doFinal():${this.transformation.value}`)
+                if ([0, 1, 3].includes(arguments.length)) {
+                    // .overload()
+                    // .overload('[B')
+                    // .overload('[B', 'int', 'int').
+                    input = arguments[0];
+                    output = ret;
+                } else if (arguments.length > 3) {
+                    // .overload('[B', 'int', 'int', '[B')
+                    // .overload('[B', 'int', 'int', '[B', 'int')
+                    input = arguments[0];
+                    output = arguments[3];
+                } else {
+                    if (arguments[0].$className === undefined) {
+                        // .overload('[B', 'int')
+                        input = null;
+                        output = arguments[0];
+                    } else {
+                        // .overload('java.nio.ByteBuffer', 'java.nio.ByteBuffer')
+                        input = arguments[0].array();
+                        output = arguments[1].array();
+                    }
+                }
+                if (input) Flog.i(_CRYPTO_TAG + "-Cipher", `input=${input}; input_str=${cast_b2str(input)}; input_b64=${cast_b2b64str(input)}`)
+                if (output) Flog.i(_CRYPTO_TAG + "-Cipher", `output=${output}; output_hex=${cast_b2hex(output)}; output_b64=${cast_b2b64str(output)}`)
+                if (printStackFlag) printStack("Cipher_doFinal")
+                return ret;
+            }
+
+            Cipher_doFinal.overload().implementation = doFinalImpl
+            Cipher_doFinal.overload('[B').implementation = doFinalImpl
+            Cipher_doFinal.overload('[B', 'int').implementation = doFinalImpl
+            Cipher_doFinal.overload('[B', 'int', 'int').implementation = doFinalImpl
+            Cipher_doFinal.overload('[B', 'int', 'int', '[B').implementation = doFinalImpl
+            Cipher_doFinal.overload('[B', 'int', 'int', '[B', 'int').implementation = doFinalImpl
+            Cipher_doFinal.overload('java.nio.ByteBuffer', 'java.nio.ByteBuffer').implementation = doFinalImpl
+
+        }
+
+        Java.perform(() => {
+            hook_Cipher_init(need_printStack);
+            hook_Cipher_update(need_printStack);
+            hook_Cipher_doFinal(need_printStack);
+        })
+    }
+
+
+    /**
+     * 监控hmac系列加解密
+     */
+    export function watch_mac(need_printStack = false): void {
+        const Mac_clazz = Java.use("javax.crypto.Mac");
+
+        function hook_Mac_init(printStackFlag) {
+            const Mac_init: Java.MethodDispatcher = Mac_clazz["init"]
+            const IvParameterSpec_clazz = Java.use("javax.crypto.spec.IvParameterSpec")
+            const initImpl: Java.MethodImplementation = function () {
+                let paramSpec: Wrapper;
+                let ret = this["init"].apply(this, arguments)
+                Flog.line(_CRYPTO_TAG + "-Hmac", `${this}.init():${this.algorithm.value}`)
+                let key: Wrapper = arguments[0];
+                let key_algorithm = key["getAlgorithm"]();
+                let key_format = key["getFormat"]();
+                let key_encoded = key["getEncoded"]();
+                if (key) Flog.i(_CRYPTO_TAG + "-Hmac", `Key info: algorithm=${key_algorithm}; format=${key_format}; encoded=${key_encoded}; key_str=${cast_b2str(key_encoded)}; key_b64=${cast_b2b64str(key_encoded)}`)
+                if (arguments.length == 2) {
+                    // .overload('java.security.Key', 'java.security.spec.AlgorithmParameterSpec')
+                    paramSpec = arguments[1];
+                    try {
+                        paramSpec = Java.cast(paramSpec, IvParameterSpec_clazz);
+                        let iv = paramSpec.getIV();
+                        Flog.i(_CRYPTO_TAG + "-Cipher", `IV=${iv}; IV_str=${cast_b2str(iv)}`);
+                    } catch (error) {
+                        Flog.i(_CRYPTO_TAG + "-Cipher", `paramSpec=${paramSpec.toString()}`);
+                    }
+                }
+                if (printStackFlag) printStack("Mac_init")
+                return ret;
+            }
+            Mac_init.overload('java.security.Key').implementation = initImpl
+            Mac_init.overload('java.security.Key', 'java.security.spec.AlgorithmParameterSpec').implementation = initImpl
+
+        }
+
+        function hook_Mac_update(printStackFlag) {
+            const Mac_update: Java.MethodDispatcher = Mac_clazz["update"];
+            const updateImpl: Java.MethodImplementation = function () {
+                let input: Wrapper;
+                let ret = this["update"].apply(this, arguments)
+                Flog.line(_CRYPTO_TAG + "-Hmac", `${this}.update():${this.algorithm.value}`)
+                if (arguments[0].$className != undefined) {
+                    input = arguments[0].array();
+                } else {
+                    input = arguments[0];
+                }
+                let input_str: string
+                if (typeof input === "number") {
+                    input_str = `[byte 0x${(<number>input).toString(16)}]`
+                } else {
+                    input_str = cast_b2str(input)
+                }
+                if (input) Flog.i(_CRYPTO_TAG + "-Hmac", `input=${input}; input_str=${input_str}; input_b64=${cast_b2b64str(input)}`)
+                if (printStackFlag) printStack("Mac_update")
+                return ret;
+            }
+
+            Mac_update.overload('byte').implementation = updateImpl;
+            Mac_update.overload('java.nio.ByteBuffer').implementation = updateImpl;
+            Mac_update.overload('[B').implementation = updateImpl;
+            Mac_update.overload('[B', 'int', 'int').implementation = updateImpl;
+
+        }
+
+        function hook_Mac_doFinal(printStackFlag) {
+            const Mac_doFinal: Java.MethodDispatcher = Mac_clazz["doFinal"]
+            const doFinalImpl: Java.MethodImplementation = function () {
+                let output: Wrapper | null;
+                let ret = this["doFinal"].apply(this, arguments)
+                Flog.line(_CRYPTO_TAG + "-Hmac", `${this}.doFinal():${this.algorithm.value}`)
+                switch (arguments.length) {
+                    case 0:
+                        output = ret;
+                        break;
+                    case 2:
+                        output = arguments[0];
+                        break;
+                    default:
+                        output = null;
+                        break;
+                }
+                if (output) Flog.i(_CRYPTO_TAG + "-Hmac", `output=${output}; output_hex=${cast_b2hex(output)}`)
+                if (printStackFlag) printStack("Mac_doFinal")
+                return ret;
+            }
+
+
+            Mac_doFinal.overload().implementation = doFinalImpl
+            // Mac_doFinal.overload('[B').implementation = doFinalImpl
+            Mac_doFinal.overload('[B', 'int').implementation = doFinalImpl
+
+        }
+
+        Java.perform(() => {
+            hook_Mac_init(need_printStack);
+            hook_Mac_update(need_printStack);
+            hook_Mac_doFinal(need_printStack);
+        })
+    }
+
+    /**
+     * 监控密码加解密相关方法
+     * @param stack 控制调用栈的打印，默认为true，打印调用栈
+     */
+    export function watch_crypto(stack: boolean = true): void {
+        Java.perform(() => {
+            watch_cipher(stack);
+            watch_digest(stack);
+            watch_mac(stack);
+        })
     }
 
 }
