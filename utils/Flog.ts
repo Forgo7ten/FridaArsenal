@@ -86,9 +86,9 @@ export class Flog {
     static i(tag_or_msg: any, msg?: string): void {
         if (this.LOG_LEVEL_INFO >= this.level) {
             if (msg) {
-                Flog._log(console.info, 'INFO', tag_or_msg, msg);
+                Flog._log(console.log, 'INFO', tag_or_msg, msg);
             } else {
-                Flog._log(console.info, 'INFO', Flog.TAG, tag_or_msg);
+                Flog._log(console.log, 'INFO', Flog.TAG, tag_or_msg);
             }
         }
     }

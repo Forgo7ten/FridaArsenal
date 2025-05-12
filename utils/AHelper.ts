@@ -356,7 +356,16 @@ export namespace AHelper {
             i++;
         }
         logStr = logStr.slice(0, (0 - separator.length));
-        return set
+        return logStr;
+    }
+
+    /**
+     * 获取Java Bundle转String的字符串
+     * @param bundle Bundle对象
+     * @param separator 分隔符
+     */
+    export function toStrFromBundle(bundle: any, separator: string = ", "): string {
+        return toStrFromMap(bundle, separator);
     }
 
     /**
