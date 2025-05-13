@@ -1,5 +1,6 @@
 import {SoHookerHandler} from "./native/SoHookerHandler";
 import {Flog} from "./Flog";
+import {AHelper} from "./AHelper";
 
 /**
  * Android 帮助类
@@ -287,6 +288,53 @@ export namespace NHelper {
             }
         }
 
+    }
+
+    /**
+     * 获取native方法的动态注册地址
+     * @param method Java.Method对象
+     */
+    export function printMethodAddr(method) {
+        let artmethod: NativePointer = null;
+        try {
+            artmethod = method.$handle;
+        } catch (e) {
+        }
+        if (artmethod == null) {
+            try {
+                artmethod = method.$h;
+            } catch (e) {
+            }
+        }
+        if (artmethod == null) {
+            try {
+                artmethod = method.handle;
+            } catch (e) {
+            }
+        }
+        if (artmethod == null) {
+            Flog.e(`printMethodAddr: ${method.methodName} artmethod is null.`);
+            return;
+        }
+        let i = 0;
+        let native_addr = null;
+        let soModule = null;
+        for (i = 0; i < 5; i++) {
+            try {
+                // .add(16)
+                native_addr = artmethod.add(i * Process.pointerSize).readPointer();
+                soModule = Process.findModuleByAddress(native_addr);
+                if (!soModule) {
+                    continue;
+                }
+
+                if (soModule.path.startsWith("/data/app/")) {
+                    Flog.i(`find ${method.methodName}, soModule=${JSON.stringify(soModule)}\n\tnative_addr=${native_addr}, offset=${native_addr.sub(soModule.base)}`);
+                    break;
+                }
+            } catch (e) {
+            }
+        }
     }
 
 
