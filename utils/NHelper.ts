@@ -230,6 +230,33 @@ export namespace NHelper {
 
 
     /**
+     * 监控dlsym符号查找
+     */
+    export function watch_dlsym(soname: string, printBacktraceFlag: boolean = false) {
+        const dlsym_addr = Module.findExportByName(null, "dlsym");
+        console.log("dlsym_addr: " + dlsym_addr);
+        getHookHandler().addHooker(soname, (soModule) => {
+            if (dlsym_addr) {
+                Interceptor.attach(dlsym_addr, {
+                    onEnter: function (args) {
+                        const name = args[1].readCString();
+                        if (printBacktraceFlag) {
+                            printBacktrace(`dlsym(${name})`, this.context)
+                        } else {
+                            Flog.i(`dlsym: ${name}`)
+                        }
+                    },
+                    onLeave: function (retval) {
+                        Flog.d("dlsym returned: " + retval);
+                    }
+                });
+            } else {
+                Flog.e("Unable to find dlsym function address.");
+            }
+        })
+    }
+
+    /**
      * 监控RegisterNatives动态注册
      * 来自 https://github.com/lasting-yang/frida_hook_libart
      */
