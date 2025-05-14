@@ -5,16 +5,15 @@ import {Flog} from "../Flog";
  */
 class SoHooker {
     public soName: string;
-    public callback: (soModule: Module) => void;
+    public callbacks: Array<(soModule: Module) => void>;
     public isHooked: boolean;
 
     constructor(
         soName: string,
-        hookInvoke: (soModule: Module) => void,
         isHooked: boolean = false
     ) {
         this.soName = soName;
-        this.callback = hookInvoke;
+        this.callbacks = [];
         this.isHooked = isHooked;
     }
 
@@ -23,7 +22,12 @@ class SoHooker {
      * @param callback 执行的hook逻辑
      */
     update(callback: (soModule: Module) => void) {
-        this.callback = callback;
+        if (!this.callbacks.includes(callback)) {
+            this.callbacks.push(callback);
+            Flog.d("SoHooker", `Hooker ${this.soName} add callback.`);
+        } else {
+            // Flog.d("SoHooker", `The callback has been added.`)
+        }
         this.isHooked = false;
     }
 
@@ -39,17 +43,10 @@ export class SoHookerHandler {
      * @protected
      */
     protected hookers: SoHooker[] = [];
-    /**
-     * 判断是否需要更新
-     * @protected
-     */
-    protected need_update = false;
 
     constructor() {
         this.hookers = []
-        this.need_update = false;
-        // TODO: NO TEST：在这里插桩一次，之后添加hooker就直接被调用了？如果不行就要每次调用update
-        this.update();
+        SoHookerHandler.hookBeforeSoInit(this);
     }
 
     /**
@@ -62,10 +59,10 @@ export class SoHookerHandler {
         if (anyHooker) {
             anyHooker.update(callback);
         } else {
-            this.hookers.push(new SoHooker(soName, callback, false));
+            let newHooker = new SoHooker(soName, false);
+            newHooker.update(callback);
+            this.hookers.push(newHooker);
         }
-        this.need_update = true;
-        Flog.d(SoHookerHandler.TAG, `addHooker: ${soName}`)
         return this;
     }
 
@@ -80,7 +77,6 @@ export class SoHookerHandler {
                 break;
             }
         }
-        this.need_update = true;
         Flog.d(SoHookerHandler.TAG, `removeHooker: ${soName}`)
         return this;
     }
@@ -90,7 +86,6 @@ export class SoHookerHandler {
      */
     clearHookers() {
         this.hookers = []
-        this.need_update = true;
         Flog.d(SoHookerHandler.TAG, `clearHookers`)
         return this;
     }
@@ -109,35 +104,12 @@ export class SoHookerHandler {
     }
 
     /**
-     * 判断是否需要更新
-     */
-    private isNeedUpdate(): boolean {
-        return this.need_update;
-    }
-
-    /**
-     * 需要更新，设置更新标志位并重新Hook以应用更新
-     * 每次修改hookers后都需要调用这个方法
-     */
-    update() {
-        this.need_update = true;
-        SoHookerHandler.hookBeforeSoInit(this);
-    }
-
-    /**
-     * 插桩完成后更新need_update标志位
-     */
-    private allDone() {
-        this.need_update = false;
-    }
-
-    /**
      * 执行所有Hook的回调
      * @param func
      */
-    private invokeCb(func: (soname: string, callback: (soModule: Module) => void, isHooked: boolean, index: number) => void) {
+    private invokeCb(func: (soname: string, callback: Array<(soModule: Module) => void>, isHooked: boolean, index: number) => void) {
         for (let i = 0; i < this.hookers.length; i++) {
-            func(this.hookers[i].soName, this.hookers[i].callback, this.hookers[i].isHooked, i);
+            func(this.hookers[i].soName, this.hookers[i].callbacks, this.hookers[i].isHooked, i);
         }
     }
 
@@ -155,7 +127,7 @@ export class SoHookerHandler {
     printAllHooker() {
         console.log("==> PrintAllHooker:")
         for (let i = 0; i < this.hookers.length; i++) {
-            console.log(`[${i}] ${this.hookers[i].soName}`)
+            console.log(`[${i}] ${this.hookers[i].soName} has ${this.hookers[i].callbacks.length} callbacks, isHooked: ${this.hookers[i].isHooked}`);
         }
         console.log("<== PrintAllHooker done.")
     }
@@ -166,9 +138,6 @@ export class SoHookerHandler {
      * @protected
      */
     protected static hookBeforeSoInit(hookerHandler): void {
-        if (!hookerHandler.isNeedUpdate()) {
-            return;
-        }
         let linker_m;
         if (Process.pointerSize == 4) {
             linker_m = Process.findModuleByName("linker");
@@ -190,15 +159,14 @@ export class SoHookerHandler {
         Interceptor.attach(call_constructors_addr, {
             onEnter: function (args) {
                 // Flog.d(TAG, `Called call_constructors`)
-                hookerHandler.invokeCb((soname, callback, isHooked, index) => {
+                hookerHandler.invokeCb((soname, callbacks, isHooked, index) => {
                     let so = Process.findModuleByName(soname)
                     if (so && !isHooked) {
-                        callback(so);
+                        callbacks.forEach(cb => cb(so));
                         hookerHandler.doneHooker(index)
                     }
                 })
             }
         })
-        hookerHandler.allDone();
     }
 }

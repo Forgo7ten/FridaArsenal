@@ -53,7 +53,7 @@ export namespace NHelper {
      * 获取So Hook控制器
      * @returns {SoHookerHandler} SoHookerHandler对象
      */
-    export function getSoHookerHandler(): SoHookerHandler {
+    export function getHookHandler(): SoHookerHandler {
         return hookerHandler;
     }
 
@@ -209,10 +209,9 @@ export namespace NHelper {
     /**
      * 监控新线程的创建
      */
-    export function watch_pthread_create(soname: string, callback: (soModule: Module) => void = (soModule) => {
-    }) {
+    export function watch_pthread_create(soname: string) {
         let pthread_create_addr = Module.findExportByName("libc.so", "pthread_create");
-        getSoHookerHandler().addHooker(soname, (soModule) => {
+        getHookHandler().addHooker(soname, (soModule) => {
             if (pthread_create_addr) {
                 Interceptor.attach(pthread_create_addr, {
                     onEnter: function (args) {
@@ -225,10 +224,7 @@ export namespace NHelper {
             } else {
                 Flog.e("Unable to find pthread_create function address.");
             }
-            callback(soModule)
         })
-        // TODO: NO TEST
-        // .update()
     }
 
 
