@@ -216,7 +216,13 @@ export namespace NHelper {
             if (pthread_create_addr) {
                 Interceptor.attach(pthread_create_addr, {
                     onEnter: function (args) {
-                        Flog.i(`pthread_create offset: ${args[2].sub(soModule.base)}`)
+                        let func_addr = args[2]
+                        let func_module = Process.findModuleByAddress(func_addr)
+                        if (func_module) {
+                            Flog.i(`[pthread_create] ${func_addr}(${func_addr.sub(func_module.base)}) in ${func_module.name} `);
+                        } else {
+                            Flog.i(`[pthread_create] ${func_addr}`);
+                        }
                     },
                     onLeave: function (retval) {
                         Flog.d("pthread_create returned: " + retval);
@@ -233,21 +239,22 @@ export namespace NHelper {
      * 监控dlsym符号查找
      */
     export function watch_dlsym(soname: string, printBacktraceFlag: boolean = false) {
-        const dlsym_addr = Module.findExportByName(null, "dlsym");
+        const dlsym_addr = Module.findExportByName("libdl.so", "dlsym");
         console.log("dlsym_addr: " + dlsym_addr);
         getHookHandler().addHooker(soname, (soModule) => {
             if (dlsym_addr) {
                 Interceptor.attach(dlsym_addr, {
                     onEnter: function (args) {
-                        const name = args[1].readCString();
+                        const symbol = args[1].readCString();
                         if (printBacktraceFlag) {
-                            printBacktrace(`dlsym(${name})`, this.context)
+                            printBacktrace(`[dlsym] (${symbol})`, this.context)
                         } else {
-                            Flog.i(`dlsym: ${name}`)
+                            Flog.i(`[dlsym] ${symbol}`)
                         }
+                        this.symbol = symbol;
                     },
                     onLeave: function (retval) {
-                        Flog.d("dlsym returned: " + retval);
+                        Flog.i(`[dlsym] ${this.symbol} returned: ` + retval);
                     }
                 });
             } else {
