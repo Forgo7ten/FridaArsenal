@@ -77,9 +77,10 @@ export namespace NHelper {
      * @param modeFlag true=FUZZY
      */
     export function printBacktrace(TAG: string = "", context: CpuContext, modeFlag: boolean = false): void {
-        console.log("========================================  " + TAG + " backtrace strat  ========================================");
-        console.log(getBacktrace(context, modeFlag));
-        console.log("=========================================  " + TAG + " backtrace end  =========================================\r\n");
+        Flog.i("printBacktrace\n"
+            + "========================================  " + TAG + " backtrace strat  ========================================\n"
+            + getBacktrace(context, modeFlag) + "\n"
+            + "=========================================  " + TAG + " backtrace end  =========================================\r\n");
     }
 
     /**
