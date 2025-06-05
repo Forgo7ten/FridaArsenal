@@ -6,6 +6,7 @@ import {AHelper} from "./AHelper";
  * Android 帮助类
  */
 export namespace NHelper {
+    const TAG = "NHelper";
 
     /**
      * 在so初始化之前hook（只能hook一个so）
@@ -55,6 +56,15 @@ export namespace NHelper {
      */
     export function getHookHandler(): SoHookerHandler {
         return hookerHandler;
+    }
+
+    /**
+     * 添加一个So Hooker
+     * @param soname
+     * @param callback
+     */
+    export function addHooker(soname: string, callback: (soModule: Module) => void): SoHookerHandler {
+        return getHookHandler().addHooker(soname, callback);
     }
 
 
@@ -116,26 +126,38 @@ export namespace NHelper {
 
     /**
      * 写内容到指定文件（需有权限）
-     * @param filename 输出文件的全路径
-     * @param contents 要输出的内容
+     * @param outFilePath 输出文件的全路径
+     * @param buffer 要输出的内容，可以是字符串或ArrayBuffer
      */
-    export function writeFile(filename: string = "/data/local/tmp/ooout.txt", contents: string) {
-        let fopen_addr = Module.getExportByName("libc.so", "fopen");
-        let fputs_addr = Module.getExportByName("libc.so", "fputs");
-        let fclose_addr = Module.getExportByName("libc.so", "fclose");
-
-        let fopen = new NativeFunction(fopen_addr, "pointer", ["pointer", "pointer"]);
-        let fputs = new NativeFunction(fputs_addr, "int", ["pointer", "pointer"]);
-        let fclose = new NativeFunction(fclose_addr, "int", ["pointer"]);
-
-        let fileName = Memory.allocUtf8String(filename);
-        let mode = Memory.allocUtf8String("a+");
-        let fp = fopen(fileName, mode);
-        let contentHello = Memory.allocUtf8String(contents);
-        let ret = fputs(contentHello, fp);
-
-        fclose(fp);
-        Flog.i(`writeFile(${fileName}) done. return ${ret}`)
+    export function writeFile(outFilePath: string, buffer: ArrayBuffer | string) {
+        var fopen = new NativeFunction(Module.getExportByName(null, 'fopen'), 'pointer', ['pointer', 'pointer']);
+        var fwrite = new NativeFunction(Module.getExportByName(null, 'fwrite'), 'ulong', ['pointer', 'ulong', 'ulong', 'pointer']);
+        var fclose = new NativeFunction(Module.getExportByName(null, 'fclose'), 'int', ['pointer']);
+        var filePathPtr = Memory.allocUtf8String(outFilePath);
+        var modePtr = Memory.allocUtf8String('wb');
+        var filePtr = fopen(filePathPtr, modePtr);
+        if (filePtr.isNull()) {
+            throw new Error('Failed to open file: ' + outFilePath);
+        }
+        try {
+            let dataPtr: NativePointer, dataSize: number;
+            if (typeof buffer === 'string') {
+                // 如果是字符串，转换为字节数组
+                dataSize = buffer.length + 1;
+                dataPtr = Memory.alloc(dataSize);
+                dataPtr.writeUtf8String(buffer);
+            } else {
+                dataSize = buffer.byteLength;
+                dataPtr = Memory.alloc(dataSize);
+                dataPtr.writeByteArray(buffer);
+            }
+            var written = fwrite(dataPtr, 1, dataSize, filePtr);
+            if (written != dataSize) {
+                throw new Error('Failed to write all data to file (' + written + '/' + dataSize + ')');
+            }
+        } finally {
+            fclose(filePtr);
+        }
     }
 
 
@@ -368,5 +390,31 @@ export namespace NHelper {
         }
     }
 
+    /**
+     * 从内存中dump出so文件
+     * @param so so的名称或Module对象
+     * @param pkg_or_dir 包名或输出目录
+     */
+    export function dumpSo(so: string | Module, pkg_or_dir: string) {
+        let soModule = null;
+        if (typeof so === 'string') {
+            soModule = Process.findModuleByName(so);
+        } else {
+            soModule = so;
+        }
+        if (!soModule) {
+            Flog.e(`dumpSo: ${so} not found.`);
+            return;
+        }
+        Memory.protect(soModule.base, soModule.size, 'rwx');
+        let soBuffer = (soModule.base).readByteArray(soModule.size);
+        let outDir = `/data/data/${pkg_or_dir}`
+        if (pkg_or_dir.includes('/')) {
+            outDir = pkg_or_dir;
+        }
+        let outFilePath = `${outDir}/${soModule.name}_${soModule.base}_${soModule.size}.dump`;
+        NHelper.writeFile(outFilePath, soBuffer);
+        Flog.i(`dumpSo: ${soModule.name} dumped to ${outFilePath}`);
+    }
 
 }

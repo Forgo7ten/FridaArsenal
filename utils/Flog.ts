@@ -149,9 +149,7 @@ export class Flog {
             // logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][PID:${Process.id}]${threadName}[${Process.getCurrentThreadId()}][${tag}]: ${msg}`);
             logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][${Process.id}]${threadName}[${tag}]: ${msg}`);
         } catch (err) {
-            if (err instanceof ReferenceError) {
-                logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][${tag}]: ${msg}`);
-            }
+            logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][${Process.id}][${tag}]: ${msg}`);
         }
 
     }
