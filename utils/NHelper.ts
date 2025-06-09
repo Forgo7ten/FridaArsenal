@@ -228,62 +228,73 @@ export namespace NHelper {
         }
     }
 
-
     /**
-     * 监控新线程的创建
+     * 监控pthread_create函数
+     * @param soname 要hook的so的名称
+     * @param cbFunc 回调函数，接收原始pthread_create函数、及参数；可以自己处理逻辑
      */
-    export function watch_pthread_create(soname: string) {
+    export function watch_pthread_create(soname: string, cbFunc: (origFunc: NativeFunction<number, [NativePointer, NativePointer, NativePointer, NativePointer]>, cbCtx: CallbackContext, thread, attr, start_routine: NativePointer, arg) => number = null) {
         let pthread_create_addr = Module.findExportByName("libc.so", "pthread_create");
-        getHookHandler().addHooker(soname, (soModule) => {
-            if (pthread_create_addr) {
-                Interceptor.attach(pthread_create_addr, {
-                    onEnter: function (args) {
-                        let func_addr = args[2]
-                        let func_module = Process.findModuleByAddress(func_addr)
-                        if (func_module) {
-                            Flog.i(`[pthread_create] ${func_addr}(${func_addr.sub(func_module.base)}) in ${func_module.name} `);
-                        } else {
-                            Flog.i(`[pthread_create] ${func_addr}`);
-                        }
-                    },
-                    onLeave: function (retval) {
-                        Flog.d("pthread_create returned: " + retval);
+        if (pthread_create_addr) {
+            let orig_pthread_create = new NativeFunction(pthread_create_addr, 'int', ['pointer', 'pointer', 'pointer', 'pointer']);
+            getHookHandler().addHooker(soname, (soModule) => {
+                Interceptor.replace(pthread_create_addr, new NativeCallback(function (thread, attr, start_routine, arg) {
+                    Flog.i(`[pthread_create] thread=${thread}, attr=${attr}, start_routine=${start_routine}, arg=${arg}`);
+                    let result;
+                    let func_module = Process.findModuleByAddress(start_routine)
+                    if (func_module) {
+                        Flog.i(`[pthread_create] ${start_routine}(${start_routine.sub(func_module.base)}) in ${func_module.name} `);
+                    } else {
+                        Flog.i(`[pthread_create] ${start_routine}`);
                     }
-                });
-            } else {
-                Flog.e("Unable to find pthread_create function address.");
-            }
-        })
+                    if (cbFunc) {
+                        result = cbFunc(orig_pthread_create, this, thread, attr, start_routine, arg);
+                    } else {
+                        result = orig_pthread_create(thread, attr, start_routine, arg);
+                        Flog.i(`[pthread_create] returned: ${result}`);
+                    }
+                    return result;
+                }, 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
+            })
+        } else {
+            Flog.e("Unable to find pthread_create function address.");
+        }
     }
 
 
     /**
-     * 监控dlsym符号查找
+     * 监控dlsym函数
+     * @param soname 要hook的so的名称
+     * @param cbFunc 回调函数，接收原始dlsym函数、句柄和符号地址；可以自己处理逻辑
+     * @param printBacktraceFlag 是否打印栈回溯
      */
-    export function watch_dlsym(soname: string, printBacktraceFlag: boolean = false) {
+    export function watch_dlsym(soname: string, cbFunc: (origFunc: NativeFunction<NativePointer, [NativePointer, NativePointer]>, cbCtx: CallbackContext, handle: NativePointer, symbol: NativePointer) => NativePointer = null, printBacktraceFlag: boolean = false) {
         const dlsym_addr = Module.findExportByName("libdl.so", "dlsym");
-        console.log("dlsym_addr: " + dlsym_addr);
-        getHookHandler().addHooker(soname, (soModule) => {
-            if (dlsym_addr) {
-                Interceptor.attach(dlsym_addr, {
-                    onEnter: function (args) {
-                        const symbol = args[1].readCString();
-                        if (printBacktraceFlag) {
-                            printBacktrace(`[dlsym] (${symbol})`, this.context)
-                        } else {
-                            Flog.i(`[dlsym] ${symbol}`)
-                        }
-                        this.symbol = symbol;
-                    },
-                    onLeave: function (retval) {
-                        Flog.i(`[dlsym] ${this.symbol} returned: ` + retval);
+        if (dlsym_addr) {
+            let orig_dlsym = new NativeFunction(dlsym_addr, 'pointer', ['pointer', 'pointer']);
+            getHookHandler().addHooker(soname, (soModule) => {
+                Interceptor.replace(dlsym_addr, new NativeCallback(function (handle, symbol) {
+                    let result;
+                    let symbolStr = symbol.readCString();
+                    if (printBacktraceFlag) {
+                        printBacktrace(`[dlsym] (${symbolStr})`, this.context)
+                    } else {
+                        Flog.i(`[dlsym] ${symbolStr}`)
                     }
-                });
-            } else {
-                Flog.e("Unable to find dlsym function address.");
-            }
-        })
+                    if (cbFunc) {
+                        result = cbFunc(orig_dlsym, this, handle, symbol);
+                    } else {
+                        result = orig_dlsym(handle, symbol);
+                        Flog.i(`[dlsym] ${symbolStr} returned: ` + result);
+                    }
+                    return result;
+                }, 'pointer', ['pointer', 'pointer']));
+            })
+        } else {
+            Flog.e("Unable to find [dlsym] function address.");
+        }
     }
+
 
     /**
      * 监控RegisterNatives动态注册
