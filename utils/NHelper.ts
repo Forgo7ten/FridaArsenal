@@ -428,4 +428,127 @@ export namespace NHelper {
         Flog.i(`dumpSo: ${soModule.name} dumped to ${outFilePath}`);
     }
 
+
+    /**
+     * 监控access函数 (no test)
+     * @param cbFunc
+     * @param printBacktraceFlag
+     */
+    export function watch_access(cbFunc: (origFunc: NativeFunction<number, [NativePointer, number]>, cbCtx: CallbackContext, pathname: NativePointer, mode: number) => number = null, printBacktraceFlag: boolean = false) {
+        const access_addr = Module.findExportByName("libc.so", "access");
+        if (access_addr) {
+            let orig_access = new NativeFunction(access_addr, 'int', ['pointer', 'int']);
+            Interceptor.replace(access_addr, new NativeCallback(function (pathname, mode) {
+                let result;
+                let path = pathname.readCString();
+                if (printBacktraceFlag) {
+                    printBacktrace(`[access] ${path}  with mode ${mode}`, this.context);
+                } else {
+                    Flog.i(`[access] ${path}  mode ${mode}`);
+                }
+                if (cbFunc) {
+                    result = cbFunc(orig_access, this, pathname, mode);
+                } else {
+                    result = orig_access(pathname, mode);
+                    Flog.i(`[access] Result: ` + result);
+                }
+                return result;
+            }, 'int', ['pointer', 'int']));
+        } else {
+            Flog.e("Unable to find [access] function address.");
+        }
+    }
+
+    /**
+     * 监控open函数
+     * @param cbFunc
+     * @param printBacktraceFlag
+     */
+    export function watch_open(cbFunc: (origFunc: NativeFunction<number, [NativePointer, number]>, cbCtx: CallbackContext, pathname: NativePointer, flags: number) => number = null, printBacktraceFlag: boolean = false) {
+        const open_addr = Module.findExportByName("libc.so", "open");
+        if (open_addr) {
+            let orig_open = new NativeFunction(open_addr, 'int', ['pointer', 'int']);
+            Interceptor.replace(open_addr, new NativeCallback(function (pathname, flags) {
+                let result;
+                let path = pathname.readCString();
+                if (printBacktraceFlag) {
+                    printBacktrace(`[open] ${path} with flags ${flags}`, this.context);
+                } else {
+                    Flog.i(`[open] ${path} with flags ${flags}`);
+                }
+                if (cbFunc) {
+                    result = cbFunc(orig_open, this, pathname, flags);
+                } else {
+                    result = orig_open(pathname, flags);
+                    Flog.i(`[open] Result: ` + result);
+                }
+                return result;
+            }, 'int', ['pointer', 'int']));
+        } else {
+            Flog.e("Unable to find [open] function address.");
+        }
+    }
+
+
+    /**
+     * 监控openat函数 (no test)
+     * @param cbFunc
+     * @param printBacktraceFlag
+     */
+    export function watch_openat(cbFunc: (origFunc: NativeFunction<number, [number, NativePointer, number]>, cbCtx: CallbackContext, dirfd: number, pathname: NativePointer, mode: number) => number = null, printBacktraceFlag: boolean = false) {
+        const openat_addr = Module.findExportByName("libc.so", "openat");
+        if (openat_addr) {
+            let orig_openat = new NativeFunction(openat_addr, 'int', ['int', 'pointer', 'int']);
+            Interceptor.replace(openat_addr, new NativeCallback(function (dirfd, pathname, mode) {
+                let result;
+                let path = pathname.readCString();
+                if (printBacktraceFlag) {
+                    printBacktrace(`[openat] ${path} with mode ${mode}`, this.context);
+                } else {
+                    Flog.i(`[openat] ${path} with mode ${mode}`);
+                }
+                if (cbFunc) {
+                    result = cbFunc(orig_openat, this, dirfd, pathname, mode);
+                } else {
+                    result = orig_openat(dirfd, pathname, mode);
+                    Flog.i(`[openat] Result: ` + result);
+                }
+                return result;
+            }, 'int', ['int', 'pointer', 'int']));
+        } else {
+            Flog.e("Unable to find [openat] function address.");
+        }
+    }
+
+    /**
+     * 监控fopen函数（会调用open函数）
+     * @param cbFunc
+     * @param printBacktraceFlag
+     */
+    export function watch_fopen(cbFunc: (origFunc: NativeFunction<NativePointer, [NativePointer, NativePointer]>, cbCtx: CallbackContext, filename: NativePointer, mode: NativePointer) => NativePointer = null, printBacktraceFlag: boolean = false) {
+        const fopen_addr = Module.findExportByName("libc.so", "fopen");
+        if (fopen_addr) {
+            let orig_fopen = new NativeFunction(fopen_addr, 'pointer', ['pointer', 'pointer']);
+            Interceptor.replace(fopen_addr, new NativeCallback(function (filename, mode) {
+                let result;
+                let filePath = filename.readCString();
+                if (printBacktraceFlag) {
+                    printBacktrace(`[fopen] ${filePath} with mode ${mode.readCString()}`, this.context);
+                } else {
+                    Flog.i(`[fopen] ${filePath} with mode ${mode.readCString()}`);
+                }
+                if (cbFunc) {
+                    result = cbFunc(orig_fopen, this, filename, mode);
+                } else {
+                    result = orig_fopen(filename, mode);
+                    Flog.i(`[fopen] Result: ` + result);
+                }
+                return result;
+            }, 'pointer', ['pointer', 'pointer']));
+        } else {
+            Flog.e("Unable to find [fopen] function address.");
+        }
+    }
+
+
 }
