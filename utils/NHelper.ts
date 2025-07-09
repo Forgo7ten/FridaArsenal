@@ -550,5 +550,152 @@ export namespace NHelper {
         }
     }
 
+    /**
+     * 监控fork函数
+     * @param cbFunc    可选，回调函数
+     * @param printBacktraceFlag   是否打印调用栈
+     */
+    export function watch_fork(cbFunc: (origFunc: NativeFunction<number, []>, cbCtx: CallbackContext) => number = null, printBacktraceFlag: boolean = false) {
+        const fork_addr = Module.findExportByName("libc.so", "fork");
+        if (fork_addr) {
+            let orig_fork = new NativeFunction(fork_addr, 'int', []);  // fork无参数
+            Interceptor.replace(fork_addr, new NativeCallback(function () {
+                let result;
+                if (printBacktraceFlag) {
+                    printBacktrace(`[fork] called`, this.context);
+                } else {
+                    Flog.i(`[fork] called`);
+                }
+                if (cbFunc) {
+                    result = cbFunc(orig_fork, this);
+                } else {
+                    result = orig_fork();
+                    Flog.i(`[fork] Result: ` + result);
+                }
+                return result;
+            }, 'int', []));
+        } else {
+            Flog.e("Unable to find [fork] function address.");
+        }
+    }
+
+
+    /**
+     * 监控strstr函数
+     * @param cbFunc 可选，回调函数
+     * @param printBacktraceFlag
+     */
+    export function watch_strstr(cbFunc: (origFunc: NativeFunction<NativePointer, [NativePointer, NativePointer]>, cbCtx: CallbackContext, haystack: NativePointer, needle: NativePointer) => NativePointer = null, printBacktraceFlag: boolean = false) {
+        const strstr_addr = Module.findExportByName("libc.so", "strstr");
+        if (strstr_addr) {
+            let orig_strstr = new NativeFunction(strstr_addr, 'pointer', ['pointer', 'pointer']);
+            Interceptor.replace(strstr_addr, new NativeCallback(function (haystack, needle) {
+                let result;
+                let haystackStr = haystack.readUtf8String();
+                let needleStr = needle.readUtf8String();
+                if (printBacktraceFlag) {
+                    printBacktrace(`[strstr] ${needleStr} in-> ${haystackStr}`, this.context);
+                } else {
+                    Flog.i(`[strstr] ${needleStr} in-> ${haystackStr}`);
+                }
+                if (cbFunc) {
+                    result = cbFunc(orig_strstr, this, haystack, needle);
+                } else {
+                    result = orig_strstr(haystack, needle);
+                    let resultStr = "False";
+                    if (result != 0) {
+                        resultStr = "Found at: " + result.readUtf8String();
+                    }
+                    Flog.i(`[strstr] Result: ${resultStr}`);
+                }
+                return result;
+            }, 'pointer', ['pointer', 'pointer']));
+        } else {
+            Flog.e("Unable to find [strstr] function address.");
+        }
+    }
+
+
+    /**
+     * 监控SVC调用
+     * @param soname
+     */
+    export function watch_svc(soname: string = "libc.so") {
+        type SvcHook = {
+            name: string;
+            callback: InvocationListenerCallbacks | InstructionProbeCallback;
+        };
+        let svc_map_arm64: Map<number, SvcHook> = new Map();
+        svc_map_arm64.set(56, {
+            name: "__NR_openat", callback: {
+                onEnter: function (args) {
+                    let path = args[1].readCString();
+                    Flog.i(`onEnter_SVC __NR_openat ${path}`);
+                }, onLeave: function (retval) {
+                    // Flog.i(`onLeave_SVC __NR_openat retval=${retval}`);
+                }
+            }
+        }).set(48, {
+            name: "__NR_faccessat", callback: {
+                onEnter: function (args) {
+                    let path = args[1].readCString();
+                    Flog.i(`onEnter_SVC __NR_faccessat ${path}`);
+                }, onLeave: function (retval) {
+                    // Flog.i(`onLeave_SVC __NR_faccessat retval=${retval}`);
+                }
+            }
+        });
+        let svc_code_hex;
+        let arch = Process.arch;
+        if ("arm" === arch) {
+            svc_code_hex = "00 00 00 EF";
+        } else if ("arm64" === arch) {
+            svc_code_hex = "01 00 00 D4";
+        } else {
+            Flog.e("arch not support!")
+            return;
+        }
+        Process.enumerateRanges('r--').forEach(function (range) {
+            if (!range.file || !range.file.path) {
+                return;
+            }
+            let range_path = range.file.path;
+            if (!range_path.includes(soname)) {
+                return;
+            }
+            let baseAddr = Module.getBaseAddress(range_path);
+            let soName = range_path.split('/').pop();
+            Memory.scan(range.base, range.size, svc_code_hex, {
+                onMatch: function (match, size) {
+                    let svc_addr = match;
+                    if (svc_addr.toUInt32() % 4 !== 0) {
+                        Flog.w(`svc_addr ${svc_addr} is not aligned to 4 bytes, skip.`);
+                        return;
+                    }
+                    let svc_number = 0;
+                    if ("arm64" === arch) {
+                        svc_number = ((svc_addr.sub(0x4).readS32()) >> 5) & 0xFFFF;
+                    } else if ("arm" === arch) {
+                        svc_number = (svc_addr.sub(0x4).readS32()) & 0xFFF;
+                    } else {
+                        Flog.e(`arch ${arch} not support!`)
+                        return;
+                    }
+                    Flog.d(`[svc] ${soName} ${svc_addr}(${svc_addr.sub(baseAddr)}) svc_number=${svc_number}`);
+
+                    if ("arm64" === arch) {
+                        if (svc_map_arm64.has(svc_number)) {
+                            let svc_info = svc_map_arm64.get(svc_number);
+                            Interceptor.attach(svc_addr, svc_info.callback);
+                        } else {
+                            // Flog.w(`[svc] ${soName} svc_number=${svc_number} not found in map.`);
+                        }
+                    } else if ("arm" === arch) {
+                        // none
+                    }
+                }
+            })
+        })
+    }
 
 }
