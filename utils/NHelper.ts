@@ -585,31 +585,33 @@ export namespace NHelper {
      * @param cbFunc 可选，回调函数
      * @param printBacktraceFlag
      */
-    export function watch_strstr(cbFunc: (origFunc: NativeFunction<NativePointer, [NativePointer, NativePointer]>, cbCtx: CallbackContext, haystack: NativePointer, needle: NativePointer) => NativePointer = null, printBacktraceFlag: boolean = false) {
+    export function watch_strstr(cbFunc: (cbCtx: InvocationContext, haystack_str: string, needle_str: string) => boolean = null, printBacktraceFlag: boolean = false) {
         const strstr_addr = Module.findExportByName("libc.so", "strstr");
         if (strstr_addr) {
-            let orig_strstr = new NativeFunction(strstr_addr, 'pointer', ['pointer', 'pointer']);
-            Interceptor.replace(strstr_addr, new NativeCallback(function (haystack, needle) {
-                let result;
-                let haystackStr = haystack.readUtf8String();
-                let needleStr = needle.readUtf8String();
-                if (printBacktraceFlag) {
-                    printBacktrace(`[strstr] ${needleStr} in-> ${haystackStr}`, this.context);
-                } else {
-                    Flog.i(`[strstr] ${needleStr} in-> ${haystackStr}`);
-                }
-                if (cbFunc) {
-                    result = cbFunc(orig_strstr, this, haystack, needle);
-                } else {
-                    result = orig_strstr(haystack, needle);
+            Interceptor.attach(strstr_addr, {
+                onEnter: function (args) {
+                    let haystack_str = args[0].readUtf8String();
+                    let needle_str = args[1].readUtf8String();
+                    if (printBacktraceFlag) {
+                        printBacktrace(`[strstr] ${needle_str} in-> ${haystack_str}`, this.context);
+                    } else {
+                        Flog.i(`[strstr] ${needle_str} in-> ${haystack_str}`);
+                    }
+                    if (cbFunc) {
+                        this.need_replace = cbFunc(this, haystack_str, needle_str)
+                    }
+                }, onLeave: function (retval) {
                     let resultStr = "False";
-                    if (result != 0) {
-                        resultStr = "Found at: " + result.readUtf8String();
+                    if (retval != ptr(0)) {
+                        resultStr = "Found at: " + retval.readUtf8String();
+                    }
+                    if (this.need_replace) {
+                        retval.replace(ptr(0));
+                        resultStr += "; Replaced NULL."
                     }
                     Flog.i(`[strstr] Result: ${resultStr}`);
                 }
-                return result;
-            }, 'pointer', ['pointer', 'pointer']));
+            })
         } else {
             Flog.e("Unable to find [strstr] function address.");
         }
