@@ -3,7 +3,7 @@ import {AHelper} from "./utils/AHelper";
 
 function main() {
     Java.perform(() => {
-        console.log("hello Frida.")
+        Flog.i("hello Frida.")
     })
 }
 

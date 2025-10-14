@@ -1,202 +1,152 @@
 import Wrapper = Java.Wrapper;
 
 /**
- * @class 日志工具类
+ * 日志工具模块
+ *
+ * 使用示例：
+ *   import { Flog } from "./Flog";
+ *   Flog.d("Hello world");
+ *   Flog.setLogLevel(Flog.LOG_LEVEL_WARN);
  */
-export class Flog {
-    /** @readonly DEBUG等级日志 */
-    static LOG_LEVEL_DEBUG: number = 0;
-    /** @readonly INFO等级日志 */
-    static LOG_LEVEL_INFO: number = 1;
-    /** @readonly WARN等级日志 */
-    static LOG_LEVEL_WARN: number = 2;
-    /** @readonly ERROR等级日志 */
-    static LOG_LEVEL_ERROR: number = 3;
-    /** @private */
-    static level: number = this.LOG_LEVEL_DEBUG;
+export const Flog = (() => {
+    // 私有常量
+    const TAG = "FridaLog";
 
-    /** @private 不使用Java标志 */
-    static noJavaFlag: boolean = false;
+    // 日志等级常量
+    const LOG_LEVEL_DEBUG = 0;
+    const LOG_LEVEL_INFO = 1;
+    const LOG_LEVEL_WARN = 2;
+    const LOG_LEVEL_ERROR = 3;
 
-    /**
-     * 设置Flag，打印日志时不调用JavaAPI
-     */
-    static noJava() {
-        this.noJavaFlag = true;
-    }
+    // 内部状态
+    let level = LOG_LEVEL_DEBUG;
+    // 不使用Java
+    let noJavaFlag = false;
 
-    /**
-     * 设置日志等级，低于日志等级的日志不会打印
-     * @param level 日志等级
-     */
-    static setLogLevel(level: number) {
-        switch (level) {
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-                this.level = level;
-                break;
-            default:
-                this.level = this.LOG_LEVEL_DEBUG;
-                this.e("Error level!")
-                break;
-        }
-    }
-
-    static readonly TAG: string = "FridaLog"
-
-    static line(msg: string): void;
-    static line(tag: string, msg: string): void;
-
-    static line(tag_or_msg: any, msg?: string): void {
-        if (msg) {
-            this.i(tag_or_msg, `========================================  ${msg}  ========================================`)
-        } else {
-            this.i(`========================================  ${tag_or_msg}  ========================================`)
-        }
-    }
-
-    /**
-     * debug等级日志
-     * @param msg 要打印的日志
-     */
-    static d(msg: string): void;
-
-    /**
-     * debug等级日志
-     * @param tag 要打印的日志
-     * @param msg 日志所属TAG
-     */
-    static d(tag: string, msg: string): void;
-
-    static d(tag_or_msg: any, msg?: string): void {
-        if (this.LOG_LEVEL_DEBUG >= this.level) {
-            if (msg) {
-                Flog._log(console.log, 'DEBUG', tag_or_msg, msg);
-            } else {
-                Flog._log(console.log, 'DEBUG', Flog.TAG, tag_or_msg);
-            }
-        }
-    }
-
-    /**
-     * info等级日志
-     * @param msg 要打印的日志
-     */
-    static i(msg: string): void;
-
-    /**
-     * info等级日志
-     * @param tag 日志所属TAG
-     * @param msg 要打印的日志
-     */
-    static i(tag: string, msg: string): void;
-
-    static i(tag_or_msg: any, msg?: string): void {
-        if (this.LOG_LEVEL_INFO >= this.level) {
-            if (msg) {
-                Flog._log(console.log, 'INFO', tag_or_msg, msg);
-            } else {
-                Flog._log(console.log, 'INFO', Flog.TAG, tag_or_msg);
-            }
-        }
-    }
-
-    /**
-     * warn等级日志
-     * @param msg 要打印的日志
-     */
-    static w(msg: string): void;
-    /**
-     * warn等级日志
-     * @param tag 日志所属TAG
-     * @param msg 要打印的日志
-     */
-    static w(tag: string, msg: string): void;
-
-    static w(tag_or_msg: any, msg?: string): void {
-        if (this.LOG_LEVEL_WARN >= this.level) {
-            if (msg) {
-                Flog._log(console.warn, 'WARN', tag_or_msg, msg);
-            } else {
-                Flog._log(console.warn, 'WARN', Flog.TAG, tag_or_msg);
-            }
-        }
-    }
-
-    /**
-     * error等级日志
-     * @param msg 要打印的日志
-     */
-    static e(msg: string): void;
-    /**
-     * error等级日志
-     * @param tag 日志所属TAG
-     * @param msg 要打印的日志
-     */
-    static e(tag: string, msg: string): void;
-
-    static e(tag_or_msg: any, msg?: string): void {
-        if (this.LOG_LEVEL_ERROR >= this.level) {
-            if (msg) {
-                Flog._log(console.error, 'ERROR', tag_or_msg, msg);
-            } else {
-                Flog._log(console.error, 'ERROR', Flog.TAG, tag_or_msg);
-            }
-        }
-    }
-
-    static _log(logfunc: (message?: any, ...optionalParams: any[]) => void, level: string, tag: string, msg: string) {
-        if (this.noJavaFlag) {
-            // 不使用JavaAPI去获取线程信息，免得卡住
-            logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][${Process.id}][${tag}]: ${msg}`);
+    // 内部通用日志函数
+    function _log(
+        logfunc: (message?: any, ...optionalParams: any[]) => void,
+        logLevel: string,
+        tag: string,
+        msg: string
+    ) {
+        if (noJavaFlag) {
+            logfunc(`[${logLevel}][${new Date().toLocaleString("zh-CN")}][${Process.id}][${tag}]: ${msg}`);
             return;
         }
+
         try {
             let threadName = "";
             if (Java.available) {
                 Java.perform(() => {
-                    const Thread: Wrapper = Java.use('java.lang.Thread');
+                    const Thread: Wrapper = Java.use("java.lang.Thread");
                     threadName = `[${(<Wrapper>Thread.currentThread()).getName()}]`;
                 });
             }
-            // logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][PID:${Process.id}]${threadName}[${Process.getCurrentThreadId()}][${tag}]: ${msg}`);
-            logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][${Process.id}]${threadName}[${tag}]: ${msg}`);
-        } catch (err) {
-            logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][${Process.id}][${tag}]: ${msg}`);
+            logfunc(`[${logLevel}][${new Date().toLocaleString("zh-CN")}][${Process.id}]${threadName}[${tag}]: ${msg}`);
+        } catch {
+            logfunc(`[${logLevel}][${new Date().toLocaleString("zh-CN")}][${Process.id}][${tag}]: ${msg}`);
         }
+    }
 
+
+    /**
+     * 设置Flag，不调用JavaAPI
+     */
+    function noJava() {
+        noJavaFlag = true;
     }
 
     /**
-     * send消息到python
-     * @param content 要打印的日志
+     * 设置日志等级
      */
-    static send(content: string): void;
-    /**
-     * send消息到python
-     * @param tag 日志所属TAG
-     * @param content 要打印的日志
-     */
-    static send(tag: string, content: string): void;
+    function setLogLevel(lv: number) {
+        switch (lv) {
+            case LOG_LEVEL_DEBUG:
+            case LOG_LEVEL_INFO:
+            case LOG_LEVEL_WARN:
+            case LOG_LEVEL_ERROR:
+                level = lv;
+                break;
+            default:
+                level = LOG_LEVEL_DEBUG;
+                e("Error level!");
+                break;
+        }
+    }
 
-    static send(tag_or_msg: any, content?: string): void {
-        let tid = Process.getCurrentThreadId();
-        if (content) {
-            send(JSON.stringify({
-                tid: tid,
-                status: 'msg',
-                tag: tag_or_msg,
-                content: content
-            }));
+    /**
+     * 打印分割线
+     */
+    function line(tag_or_msg: string, msg?: string) {
+        if (msg) {
+            i(tag_or_msg, `========================================  ${msg}  ========================================`);
         } else {
-            send(JSON.stringify({
-                tid: tid,
-                status: 'msg',
-                tag: Flog.TAG,
-                content: tag_or_msg
-            }));
+            i(`========================================  ${tag_or_msg}  ========================================`);
         }
     }
-}
+
+    /** debug 日志 */
+    function d(tag_or_msg: string, msg?: string) {
+        if (LOG_LEVEL_DEBUG >= level) {
+            if (msg) _log(console.log, "DEBUG", tag_or_msg, msg);
+            else _log(console.log, "DEBUG", TAG, tag_or_msg);
+        }
+    }
+
+    /** info 日志 */
+    function i(tag_or_msg: string, msg?: string) {
+        if (LOG_LEVEL_INFO >= level) {
+            if (msg) _log(console.log, "INFO", tag_or_msg, msg);
+            else _log(console.log, "INFO", TAG, tag_or_msg);
+        }
+    }
+
+    /** warn 日志 */
+    function w(tag_or_msg: string, msg?: string) {
+        if (LOG_LEVEL_WARN >= level) {
+            if (msg) _log(console.warn, "WARN", tag_or_msg, msg);
+            else _log(console.warn, "WARN", TAG, tag_or_msg);
+        }
+    }
+
+
+    /** error 日志 */
+    function e(tag_or_msg: string, msg?: string) {
+        if (LOG_LEVEL_ERROR >= level) {
+            if (msg) _log(console.error, "ERROR", tag_or_msg, msg);
+            else _log(console.error, "ERROR", TAG, tag_or_msg);
+        }
+    }
+
+    const fridaSend: typeof send = (globalThis as any).send;
+
+    /**
+     * 发送日志到 Python
+     */
+    function send(tag_or_msg: string, content?: string) {
+        const tid = Process.getCurrentThreadId();
+        const tag = content ? tag_or_msg : TAG;
+        const message = content ?? tag_or_msg;
+        fridaSend(JSON.stringify({tid, status: "msg", tag, content: message}));
+    }
+
+    return {
+        /** 日志等级常量 */
+        LOG_LEVEL_DEBUG,
+        LOG_LEVEL_INFO,
+        LOG_LEVEL_WARN,
+        LOG_LEVEL_ERROR,
+
+        /** 获取日志Tag（只读） */
+        TAG,
+        noJava,
+        setLogLevel,
+        line,
+        d,
+        i,
+        w,
+        e,
+        send,
+    };
+})();
