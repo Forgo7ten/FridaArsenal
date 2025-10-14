@@ -15,6 +15,16 @@ export class Flog {
     /** @private */
     static level: number = this.LOG_LEVEL_DEBUG;
 
+    /** @private 不使用Java标志 */
+    static noJavaFlag: boolean = false;
+
+    /**
+     * 设置Flag，打印日志时不调用JavaAPI
+     */
+    static noJava() {
+        this.noJavaFlag = true;
+    }
+
     /**
      * 设置日志等级，低于日志等级的日志不会打印
      * @param level 日志等级
@@ -138,6 +148,11 @@ export class Flog {
     }
 
     static _log(logfunc: (message?: any, ...optionalParams: any[]) => void, level: string, tag: string, msg: string) {
+        if (this.noJavaFlag) {
+            // 不使用JavaAPI去获取线程信息，免得卡住
+            logfunc(`[${level}][${new Date().toLocaleString('zh-CN')}][${Process.id}][${tag}]: ${msg}`);
+            return;
+        }
         try {
             let threadName = "";
             if (Java.available) {
