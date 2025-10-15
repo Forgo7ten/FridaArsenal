@@ -36,8 +36,8 @@ class SoHooker {
 /**
  * hook控制，管理所有SoHook任务
  */
-export class SoHookerHandler {
-    static readonly TAG: string = "SoHookerHandler";
+class SoHookerHandlerImpl {
+    readonly TAG: string = "SoHookerHandler";
     /**
      * 存储soHook任务
      * @protected
@@ -46,7 +46,7 @@ export class SoHookerHandler {
 
     constructor() {
         this.hookers = []
-        SoHookerHandler.hookBeforeSoInit(this);
+        this.hookBeforeSoInit()
     }
 
     /**
@@ -77,7 +77,7 @@ export class SoHookerHandler {
                 break;
             }
         }
-        Flog.d(SoHookerHandler.TAG, `removeHooker: ${soName}`)
+        Flog.d(this.TAG, `removeHooker: ${soName}`)
         return this;
     }
 
@@ -86,7 +86,7 @@ export class SoHookerHandler {
      */
     clearHookers() {
         this.hookers = []
-        Flog.d(SoHookerHandler.TAG, `clearHookers`)
+        Flog.d(this.TAG, `clearHookers`)
         return this;
     }
 
@@ -135,9 +135,10 @@ export class SoHookerHandler {
 
     /**
      * Hook实际执行的函数
-     * @protected
+     * @private
      */
-    protected static hookBeforeSoInit(hookerHandler): void {
+    private hookBeforeSoInit(): void {
+        const self = this;
         let linker_m;
         if (Process.pointerSize == 4) {
             linker_m = Process.findModuleByName("linker");
@@ -159,14 +160,16 @@ export class SoHookerHandler {
         Interceptor.attach(call_constructors_addr, {
             onEnter: function (args) {
                 // Flog.d(TAG, `Called call_constructors`)
-                hookerHandler.invokeCb((soname, callbacks, isHooked, index) => {
+                self.invokeCb((soname, callbacks, isHooked, index) => {
                     let so = Process.findModuleByName(soname)
                     if (so && !isHooked) {
                         callbacks.forEach(cb => cb(so));
-                        hookerHandler.doneHooker(index)
+                        self.doneHooker(index)
                     }
                 })
             }
         })
     }
 }
+
+export const soHookerHandler = new SoHookerHandlerImpl();
