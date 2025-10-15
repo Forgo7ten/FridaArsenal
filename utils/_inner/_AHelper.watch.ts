@@ -1,10 +1,20 @@
 import {Flog} from "../Flog";
 import {_AHelperCore} from "./_AHelper.core";
+import {_AHelperHook} from "./_AHelper.hook";
 import Wrapper = Java.Wrapper;
 
 const {printStack, getClsNameFromObj} = _AHelperCore
+const {hookMethodAllOverloads} = _AHelperHook
 
 export const _AHelperWatch = (() => {
+
+    /**
+     * watch android.util.log
+     * @param printStackFlag
+     */
+    function watch_logcat(printStackFlag: boolean = false): void {
+        ["v", "d", "i", "w", "e", "wtf"].forEach(method_name => hookMethodAllOverloads("android.util.Log", method_name, printStackFlag));
+    }
 
     /**
      * 监听 Toast.show()方法
@@ -75,6 +85,7 @@ export const _AHelperWatch = (() => {
     }
 
     return {
+        watch_logcat,
         watchToast,
         watchDialog,
         watchOnclick,
