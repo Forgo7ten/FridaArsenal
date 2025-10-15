@@ -9,3 +9,9 @@ node_modules/
 docs/
 # temp log(if exists)
 *.log
+# direnv config
+/.envrc
+# Previous projects script
+projects/
+# test script
+/test.js

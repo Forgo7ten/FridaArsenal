@@ -2,5 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools/OkHttpLogger-Frida" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools/frida_dump" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools/frida_hook_libart" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools/r0capture" vcs="Git" />
   </component>
 </project>
