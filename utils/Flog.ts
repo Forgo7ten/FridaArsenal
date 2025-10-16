@@ -21,7 +21,106 @@ export const Flog = (() => {
     // 内部状态
     let level = LOG_LEVEL_DEBUG;
     // 不使用Java
-    let noJavaFlag = false;
+    let _noJava = false;
+    // 不打印时间
+    let _noDateFmt = false;
+
+    // 延迟打印
+    class DelayedLogger {
+        private queue: string[] = [];
+        private maxQueueSize: number = 9999;
+        private timerId: any = null;
+        private flushInterval: number = 0;
+        private enabled: boolean = false;
+
+        push(logEntry: string) {
+            this.queue.push(logEntry);
+            if (this.queue.length >= this.maxQueueSize) {
+                this.flush();
+            }
+        }
+
+        flush() {
+            if (this.queue.length > 0) {
+                // delay之后丢失level（无所谓）
+                console.log(this.queue.join("\n"));
+                this.queue = [];
+            }
+        }
+
+        isEnabled() {
+            return this.enabled;
+        }
+
+        enable(interval: number = 50) {
+            if (interval <= 0) {
+                this.disable();
+                return;
+            }
+
+            if (this.enabled && this.flushInterval !== interval) {
+                this.disable();
+            }
+            if (this.enabled) return;
+
+            this.enabled = true;
+            this.flushInterval = interval;
+            this.timerId = setInterval(() => this.flush(), this.flushInterval);
+        }
+
+        disable() {
+            if (!this.enabled) return;
+
+            this.enabled = false;
+            if (this.timerId) {
+                clearInterval(this.timerId);
+                this.timerId = null;
+            }
+            this.flush(); // 立即刷新剩余日志
+        }
+    }
+
+    const delayedLogger = new DelayedLogger();
+
+    /**
+     * 启用延迟打印 与noJava配合
+     * @param interval 刷新间隔(ms)，默认50ms，设置为0或负数则禁用
+     */
+    function enableDelayedLogging(interval?: number) {
+        delayedLogger.enable(interval);
+    }
+
+    /**
+     * 禁用延迟打印并立即刷新所有缓冲的日志
+     */
+    function disableDelayedLogging() {
+        delayedLogger.disable();
+    }
+
+    /**
+     * 手动刷新延迟日志队列
+     */
+    function flush() {
+        delayedLogger.flush();
+    }
+
+    function formatLogMessage(logLevel: string, tag: string, msg: string): string {
+        let logStr = `[${logLevel}]${_noDateFmt ? "" : `[${new Date().toLocaleString("zh-CN")}]`}[${Process.id}]`;
+        if (!_noJava) {
+            try {
+                if (Java.available) {
+                    Java.perform(() => {
+                        const Thread: Wrapper = Java.use("java.lang.Thread");
+                        let threadName = `[${(<Wrapper>Thread.currentThread()).getName()}]`;
+                        logStr += threadName
+                    });
+                }
+            } catch {
+            }
+        }
+        logStr += `[${tag}]: ${msg}`;
+        return logStr;
+    }
 
     // 内部通用日志函数
     function _log(
@@ -30,23 +129,13 @@ export const Flog = (() => {
         tag: string,
         msg: string
     ) {
-        if (noJavaFlag) {
-            logfunc(`[${logLevel}][${new Date().toLocaleString("zh-CN")}][${Process.id}][${tag}]: ${msg}`);
+        const logMessage = formatLogMessage(logLevel, tag, msg);
+        if (delayedLogger.isEnabled()) {
+            delayedLogger.push(logMessage);
             return;
         }
 
-        try {
-            let threadName = "";
-            if (Java.available) {
-                Java.perform(() => {
-                    const Thread: Wrapper = Java.use("java.lang.Thread");
-                    threadName = `[${(<Wrapper>Thread.currentThread()).getName()}]`;
-                });
-            }
-            logfunc(`[${logLevel}][${new Date().toLocaleString("zh-CN")}][${Process.id}]${threadName}[${tag}]: ${msg}`);
-        } catch {
-            logfunc(`[${logLevel}][${new Date().toLocaleString("zh-CN")}][${Process.id}][${tag}]: ${msg}`);
-        }
+        logfunc(logMessage);
     }
 
 
@@ -54,7 +143,14 @@ export const Flog = (() => {
      * 设置Flag，不调用JavaAPI
      */
     function noJava() {
-        noJavaFlag = true;
+        _noJava = true;
+    }
+
+    /**
+     * 不打印时间
+     */
+    function noDateFmt() {
+        _noDateFmt = true;
     }
 
     /**
@@ -70,8 +166,26 @@ export const Flog = (() => {
                 break;
             default:
                 level = LOG_LEVEL_DEBUG;
-                e("Error level!");
+                e("Invalid log level! Using DEBUG as default.");
                 break;
+        }
+    }
+
+    /**
+     * 可配置的选项
+     * @param options 选项{ level?: number; noJava?: boolean; noDateFmt?: boolean; }
+     */
+    function setOptions(options?: { level?: number; noJava?: boolean; noDateFmt?: boolean; }) {
+        if (options) {
+            if (undefined !== options.level) {
+                setLogLevel(options.level);
+            }
+            if (undefined !== options.noJava) {
+                _noJava = options.noJava;
+            }
+            if (undefined !== options.noDateFmt) {
+                _noDateFmt = options.noDateFmt;
+            }
         }
     }
 
@@ -141,7 +255,12 @@ export const Flog = (() => {
         /** 获取日志Tag（只读） */
         TAG,
         noJava,
+        noDateFmt,
         setLogLevel,
+        setOptions,
+        enableDelayedLogging,
+        disableDelayedLogging,
+        flush,
         line,
         d,
         i,
