@@ -12,6 +12,7 @@ docs/
 # direnv config
 /.envrc
 # Previous projects script
-projects/
+projects/**
+!projects/ProjTemplate.ts
 # test script
 /test.js

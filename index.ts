@@ -11,3 +11,6 @@ function main() {
 }
 
 setImmediate(main)
+
+import {ProjTemplate} from "./projects/ProjTemplate";
+setImmediate(ProjTemplate.main)
