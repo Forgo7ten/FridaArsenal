@@ -5,14 +5,17 @@ node_modules/
 /_agent.js
 # pyenv version
 /.python-version
+# python cache
+**/__pycache__/
 # api document docs
 docs/
-# temp log(if exists)
-*.log
 # direnv config
 /.envrc
+# temp log(if exists)
+*.log
 # Previous projects script
 projects/**
 !projects/ProjTemplate.ts
+scripts/frida-server-*
 # test script
 /test.js
