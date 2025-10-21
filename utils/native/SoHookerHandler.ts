@@ -2,6 +2,7 @@ import {Flog} from "../Flog";
 
 /**
  * SoHooker对象，每个Hook的so有一个这对象对应
+ * @internal
  */
 class SoHooker {
     public soName: string;
@@ -36,7 +37,7 @@ class SoHooker {
 /**
  * hook控制，管理所有SoHook任务
  */
-class SoHookerHandlerImpl {
+export class SoHookerHandlerImpl {
     readonly TAG: string = "SoHookerHandler";
     /**
      * 存储soHook任务
@@ -157,18 +158,29 @@ class SoHookerHandlerImpl {
                 break;
             }
         }
-        Interceptor.attach(call_constructors_addr, {
-            onEnter: function (args) {
-                // Flog.d(TAG, `Called call_constructors`)
-                self.invokeCb((soname, callbacks, isHooked, index) => {
-                    let so = Process.findModuleByName(soname)
-                    if (so && !isHooked) {
-                        callbacks.forEach(cb => cb(so));
-                        self.doneHooker(index)
-                    }
-                })
-            }
-        })
+        if (call_constructors_addr) {
+            Interceptor.attach(call_constructors_addr, {
+                onEnter: function (args) {
+                    // Flog.d(TAG, `Called call_constructors`)
+                    self.invokeCb((soname, callbacks, isHooked, index) => {
+                        let so = Process.findModuleByName(soname)
+                        if (so && !isHooked) {
+                            callbacks.forEach(cb => {
+                                try {
+                                    cb(so)
+                                } catch (e) {
+                                    Flog.e(`Callback execution error for ${soname}: ${e}`)
+                                }
+                            });
+                            self.doneHooker(index)
+                        }
+                    })
+                }
+            })
+        } else {
+            Flog.e("No 'call_constructors' symbol found.")
+        }
+
     }
 }
 

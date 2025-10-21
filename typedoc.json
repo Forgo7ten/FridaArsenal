@@ -8,6 +8,7 @@
     "includeVersion": true, // 在文档中包含项目版本号
     "excludePrivate": true, // 排除标记为 private 的成员
     "excludeProtected": true, // 排除标记为 protected 的成员
+    "excludeInternal": true, // 排除 @internal
     "excludeExternals": true, // 排除外部模块
     "excludeNotDocumented": true, // 排除没有注释的成员
     "plugin": [] // 如果需要插件，这里可以添加插件配置

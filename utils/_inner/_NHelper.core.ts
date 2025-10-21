@@ -83,8 +83,8 @@ export const _NHelperCore = (() => {
             Flog.d(`${arch} NOP patched at: ` + address);
         }
 
-        function patch_ret(addr) {
-            let address = (addr instanceof NativePointer) ? addr : ptr(addr);
+        function patch_func_ret(func_addr) {
+            let address = (func_addr instanceof NativePointer) ? func_addr : ptr(func_addr);
             if (Process.arch === 'arm64') {
                 let arch = "arm64";
                 let size = 4;
@@ -141,7 +141,7 @@ export const _NHelperCore = (() => {
             getBacktrace,
             printBacktrace,
             patch_nop,
-            patch_ret,
+            patch_func_ret,
             writeFile,
         }
     }

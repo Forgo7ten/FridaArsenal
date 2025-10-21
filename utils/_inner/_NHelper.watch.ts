@@ -446,6 +446,7 @@ export const _NHelperWatch = (() => {
     return {
 
         watch_so_load,
+        watch_pthread_create,
         watch_RegisterNatives,
         watch_strstr,
         watch_access,

@@ -5,6 +5,9 @@ import {_NHelperWatch} from "./_inner/_NHelper.watch";
 import {_NHelperStr} from "./_inner/_NHelper.str";
 
 const {writeFile} = _NHelperCore
+/**
+ * Native 帮助工具模块
+ */
 export const NHelper = (() => {
 
     /**
