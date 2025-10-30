@@ -13,11 +13,11 @@ export const _NHelperCore = (() => {
         }
 
         function getModuleByAddr(addrInMem: NativePointer) {
-            Process.enumerateModules().forEach(module => {
-                if (addrInMem.compare(module.base) >= 0 && addrInMem.compare(module.base.add(module.size))) {
+            for (const module of Process.enumerateModules()) {
+                if (addrInMem.compare(module.base) >= 0 && addrInMem.compare(module.base.add(module.size)) < 0) {
                     return module;
                 }
-            })
+            }
             return null
         }
 
@@ -32,7 +32,7 @@ export const _NHelperCore = (() => {
                 return Thread.backtrace(context, mode)
                     .map((addr) => {
                         let so_module = getModuleByAddr(addr);
-                        `${fmt(addr)} is in ${so_module.name} offset: ${fmt(addr.sub(so_module.base))}`
+                        return `${fmt(addr)} is in ${so_module.name} offset: ${fmt(addr.sub(so_module.base))}`
                     }).join('\n');
             } else {
                 return Thread.backtrace(context, mode)
@@ -47,10 +47,12 @@ export const _NHelperCore = (() => {
          * @param modeFlag true=FUZZY
          */
         function printBacktrace(TAG: string = "", context: CpuContext, modeFlag: boolean = false): void {
+            Flog.d("start getBacktrace...")
             Flog.i("printBacktrace\n"
                 + "========================================  " + TAG + " backtrace strat  ========================================\n"
                 + getBacktrace(context, modeFlag) + "\n"
                 + "=========================================  " + TAG + " backtrace end  =========================================\r\n");
+            Flog.d("end getBacktrace...")
         }
 
 
