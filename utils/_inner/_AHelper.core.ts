@@ -1,4 +1,5 @@
 import Wrapper = Java.Wrapper;
+import ClassFactory = Java.ClassFactory;
 import {Flog} from "../Flog";
 
 export const _AHelperCore = (() => {
@@ -31,13 +32,15 @@ export const _AHelperCore = (() => {
      * @param cls 认为的该对象可能的类名或类，可省略
      * @returns 强转之后的Java Wrapper
      */
-    function getWrapper(jobj: Wrapper, cls: Wrapper | string = null): Wrapper {
+    function getWrapper(jobj: Wrapper | NativePointer, cls: Wrapper | string = null): Wrapper {
         if (jobj == null) {
             Flog.e(_HELPER_TAG, `getWrapper() jobj == null`);
             return null;
         }
+        if (jobj instanceof NativePointer) cls = Java.use("java.lang.Class");
         try {
-            cls = cls || jobj.$className;
+            if (!cls && 'class' in jobj && '$className' in jobj)
+                cls = jobj.$className;
             if (typeof cls === "string") {
                 return Java.cast(jobj, Java.use(cls));
             } else {
@@ -115,6 +118,18 @@ export const _AHelperCore = (() => {
         return getWrapper(fieldValue);
     }
 
+    function loadDex(dex_path: string): ClassFactory {
+        const DexCL = Java.use("dalvik.system.DexClassLoader");
+        const ctx = getAppCtx();
+        const dexCL = DexCL.$new(
+            dex_path,
+            ctx.getCacheDir().getAbsolutePath(),
+            null,
+            ctx.getClassLoader()
+        );
+        return ClassFactory.get(dexCL)
+    }
+
     return {
         filterSysClass,
         getWrapper,
@@ -123,5 +138,6 @@ export const _AHelperCore = (() => {
         getClsNameFromObj,
         getAppCtx,
         getFieldValue,
+        loadDex,
     };
 })()
