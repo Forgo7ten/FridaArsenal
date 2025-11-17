@@ -18,7 +18,7 @@ export const _NHelperWatch = (() => {
                 onEnter: function (args) {
                     let filename = args[0].readCString();
                     let flag = args[1];
-                    Flog.i(`Loading ${filename} ;flag=${flag}`)
+                    Flog.i(`Loading_ ${filename} ;flag=${flag}`)
                     if (printBacktraceFlag) {
                         printBacktrace(`dlopen(${filename})`, this.context)
                     }
@@ -58,7 +58,7 @@ export const _NHelperWatch = (() => {
                     let result;
                     let func_module = Process.findModuleByAddress(start_routine)
                     if (func_module) {
-                        Flog.i(`[pthread_create] ${start_routine}(${start_routine.sub(func_module.base)}) in ${func_module.name} `);
+                        Flog.i(`[pthread_create] ${start_routine}(${start_routine.sub(func_module.base)}) in ${func_module.path} `);
                     } else {
                         Flog.i(`[pthread_create] ${start_routine}`);
                     }
@@ -72,7 +72,7 @@ export const _NHelperWatch = (() => {
                 }, 'int', ['pointer', 'pointer', 'pointer', 'pointer']));
             };
             soname
-                ? soHookerHandler.addHooker(soname, performHook)
+                ? soHookerHandler.addHookerBeforeSoInit(soname, performHook)
                 : performHook();
         } else {
             Flog.e("Unable to find pthread_create function address.");
@@ -360,7 +360,7 @@ export const _NHelperWatch = (() => {
         const dlsym_addr = Module.findExportByName("libdl.so", "dlsym");
         if (dlsym_addr) {
             let orig_dlsym = new NativeFunction(dlsym_addr, 'pointer', ['pointer', 'pointer']);
-            soHookerHandler.addHooker(soname, (soModule) => {
+            soHookerHandler.addHookerBeforeSoInit(soname, (soModule) => {
                 Interceptor.replace(dlsym_addr, new NativeCallback(function (handle, symbol) {
                     let result;
                     let symbolStr = symbol.readCString();
@@ -442,11 +442,66 @@ export const _NHelperWatch = (() => {
 
     }
 
+    /**
+     * Stalker trace
+     * @param so_module 要trace的so
+     * @param attach_range 要attach的函数地址范围
+     * @param watch_range 要观察的指令地址范围，默认同attach_range
+     * @param watch_count 第几次调用时开始trace，默认1
+     */
+    function stalker_trace(so_module: Module, attach_range, watch_range = null, watch_count = 1) {
+        let [attach_start_offset, attach_end_offset] = attach_range
+        watch_range = watch_range ? watch_range : attach_range;
+        let [watch_start_offset, watch_end_offset] = watch_range
+        let so_base = so_module.base
+        let so_name = so_module.name
+        let call_count = 0;
+        Interceptor.attach(so_base.add(attach_start_offset), {
+            onEnter: function (args) {
+                call_count++;
+                if (watch_count === call_count) {
+                    // Stalker.trustThreshold = -1;
+                    Stalker.follow(this.threadId, {
+                        transform: function (iterator: StalkerArmIterator | StalkerThumbIterator | StalkerArm64Iterator) {
+                            let instruction = iterator.next();
+                            const block_first_addr = instruction.address;
+                            const inWatchRange = block_first_addr.compare(so_base.add(watch_start_offset)) >= 0 &&
+                                block_first_addr.compare(so_base.add(watch_end_offset)) <= 0;
+                            if (inWatchRange) {
+                                const offset = block_first_addr.sub(so_base);
+                                Flog.i(`[transform] start: ${block_first_addr} name:${so_name} offset: ${offset}`);
+                            }
+                            do {
+                                const curRealAddr = instruction.address;
+                                const curOffset = curRealAddr.sub(so_base);
+                                const instructionStr = instruction.toString()
+                                if (inWatchRange) {
+                                    console.log("\t" + curOffset + " <" + curOffset + ">: " + instructionStr);
+                                }
+                                iterator.keep();
+                            } while ((instruction = iterator.next()) !== null);
+                            if (inWatchRange) {
+                                console.log()
+                            }
+                        }
+                    })
+                }
+            },
+            onLeave: function (retval) {
+                if (watch_count == call_count) {
+                    Stalker.unfollow(this.threadId)
+                    Stalker.garbageCollect();
+                }
+            }
+        })
+
+    }
 
     return {
 
         watch_so_load,
         watch_pthread_create,
+        stalker_trace,
         watch_RegisterNatives,
         watch_strstr,
         watch_access,

@@ -8,6 +8,7 @@ node_modules/
 # python cache
 **/__pycache__/
 # api document docs
+**/.DS_Store
 docs/
 # direnv config
 /.envrc

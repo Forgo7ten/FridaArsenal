@@ -40,18 +40,80 @@ export const _NHelperHook = (() => {
     }
 
     /**
-     * 添加一个So Hooker
-     * @param soname
-     * @param callback
+     * 在so加载完成之后hook（只能hook一个so）
+     * @param soname 要hook的so的名称，如libxxx.so
+     * @param callback 自定义需要执行的回调函数
      */
-    function addHooker(soname: string, callback: (soModule: Module) => void) {
-        return soHookerHandler.addHooker(soname, callback);
+    function hookAfterSoLoad(soname: string, callback: (soModule: Module) => void) {
+        /*
+        // 注释掉，防止执行多次
+        let dlopen_np = Module.findExportByName("libdl.so", "dlopen");
+        if (dlopen_np) {
+            Interceptor.attach(dlopen_np, {
+                onEnter: function (args) {
+                    let filename = args[0].readCString();
+                    let flag = args[1];
+                    if (filename.includes(soname)) {
+                        // Flog.d(`dlopen called for ${filename}`);
+                        this.shouldCallback = true;
+                    }
+                }, onLeave: function (retval) {
+                    if (this.shouldCallback) {
+                        let so = Process.findModuleByName(soname)
+                        if (so) {
+                            callback(so);
+                        }
+                    }
+                }
+            })
+            Flog.d("attach libdl.so -> dlopen(const char* filename, int flag)")
+        }*/
+        let android_dlopen_ext_np = Module.findExportByName("libdl.so", "android_dlopen_ext");
+        if (android_dlopen_ext_np) {
+            Interceptor.attach(android_dlopen_ext_np, {
+                onEnter: function (args) {
+                    let filename = args[0].readCString();
+                    if (filename.includes(soname)) {
+                        // Flog.d(`android_dlopen_ext called for ${filename}`);
+                        this.shouldCallback = true;
+                    }
+                }, onLeave: function (retval) {
+                    if (this.shouldCallback) {
+                        let so = Process.findModuleByName(soname)
+                        if (so) {
+                            callback(so);
+                        }
+                    }
+                }
+            })
+            Flog.d("attach libdl.so -> android_dlopen_ext(const char* filename, int flag, const android_dlextinfo* extinfo)")
+        }
+    }
+
+
+    function addHookerA(soname: string, callback: (soModule: Module) => void) {
+        return soHookerHandler.addHookerAfterSoLoad(soname, callback);
+    }
+
+    function addHookerAfterSoLoad(soname: string, callback: (soModule: Module) => void) {
+        return soHookerHandler.addHookerAfterSoLoad(soname, callback);
+    }
+
+    function addHookerB(soname: string, callback: (soModule: Module) => void) {
+        return soHookerHandler.addHookerBeforeSoInit(soname, callback);
+    }
+
+    function addHookerBeforeSoInit(soname: string, callback: (soModule: Module) => void) {
+        return soHookerHandler.addHookerBeforeSoInit(soname, callback);
     }
 
     return {
+        hookBeforeSoInit,
+        hookAfterSoLoad,
         soHookerHandler,
-        addHooker,
-        hookBeforeSoInit
-
+        addHookerA,
+        addHookerAfterSoLoad,
+        addHookerB,
+        addHookerBeforeSoInit,
     }
 })()
